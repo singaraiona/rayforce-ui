@@ -22,7 +22,7 @@ endif
 
 INCLUDES = -Iinclude -I$(RAYFORCE_DIR)/core -Ideps/imgui -Ideps/implot -Ideps/glfw/include
 
-SRC = src/main.c src/queue.c src/widget.c src/context.c
+SRC = src/main.c src/queue.c src/widget.c src/context.c src/rayforce_thread.c
 OBJ = $(SRC:.c=.o)
 TARGET = raygui
 
