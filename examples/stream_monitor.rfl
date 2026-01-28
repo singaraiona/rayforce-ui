@@ -13,15 +13,15 @@
 ;; Quotes Summary
 (set qs (widget {type: 'text name: "Quotes Count"}))
 
-;; Price Chart
+;; Candlestick chart — OHLC bars from last 500 trades, 10 trades per bar
 (set pc (widget {type: 'chart name: "Price Chart"}))
 
 ;; Single timer drives all widget updates
+;; Batch query: quotes, trades, counts, and OHLC candles via xbar
 (timer 100 10000000 (fn [x]
-  (let r (write h "((fn [] (list (take quotes -100) (take trades -100) (count trades) (count quotes))))"))
-  (draw q (at r 0))
-  (draw t (at r 1))
+  (let r (write h "((fn [] (list (take quotes -100) (take trades -100) (count trades) (count quotes) (select {from: (take trades -500) by: (xbar Ts 1000) open: (first Price) high: (max Price) low: (min Price) close: (last Price)}))))"))
+  (draw q  (at r 0))
+  (draw t  (at r 1))
   (draw ts (at r 2))
-  (draw qs (at r 3))))
-
-  ;;(draw pc (write h "quotes"))))
+  (draw qs (at r 3))
+  (draw pc (at r 4))))

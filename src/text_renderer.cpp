@@ -35,13 +35,26 @@ nil_t raygui_render_text(raygui_widget_t* widget) {
         return;
     }
 
-    // Display in a scrollable child region for large output
-    ImGui::BeginChild("##textcontent", ImVec2(0, 0), false,
-                      ImGuiWindowFlags_HorizontalScrollbar);
+    // Use large font for label display
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.Fonts->Fonts.Size > 1) {
+        ImGui::PushFont(io.Fonts->Fonts[1]);
+    }
+
+    // Center text vertically and horizontally in available space
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    ImVec2 text_size = ImGui::CalcTextSize(text);
+    ImVec2 cursor = ImGui::GetCursorPos();
+    if (text_size.x < avail.x)
+        ImGui::SetCursorPosX(cursor.x + (avail.x - text_size.x) * 0.5f);
+    if (text_size.y < avail.y)
+        ImGui::SetCursorPosY(cursor.y + (avail.y - text_size.y) * 0.5f);
 
     ImGui::TextUnformatted(text);
 
-    ImGui::EndChild();
+    if (io.Fonts->Fonts.Size > 1) {
+        ImGui::PopFont();
+    }
 }
 
 } // extern "C"

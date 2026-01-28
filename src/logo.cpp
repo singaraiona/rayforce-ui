@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include "imgui.h"
+#include <GLFW/glfw3.h>
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -94,9 +95,9 @@ void raygui_logo_render(void) {
     ImVec2 p0(center.x - w * 0.5f, center.y - h * 0.5f);
     ImVec2 p1(center.x + w * 0.5f, center.y + h * 0.5f);
 
-    // Very low alpha for subtle watermark effect
+    // Subtle watermark effect
     bg->AddImage((ImTextureID)(intptr_t)g_logo_texture, p0, p1,
-                 ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 15));
+                 ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 30));
 }
 
 void raygui_logo_destroy(void) {
@@ -104,6 +105,52 @@ void raygui_logo_destroy(void) {
         glDeleteTextures(1, &g_logo_texture);
         g_logo_texture = 0;
     }
+}
+
+int raygui_icon_init(const char* svg_path, void* glfw_window) {
+    NSVGimage* image = nsvgParseFromFile(svg_path, "px", 96.0f);
+    if (!image) {
+        fprintf(stderr, "icon: failed to parse %s\n", svg_path);
+        return -1;
+    }
+
+    // Rasterize at standard icon sizes
+    int sizes[] = {64, 32, 16};
+    GLFWimage icons[3];
+    unsigned char* buffers[3] = {};
+
+    NSVGrasterizer* rast = nsvgCreateRasterizer();
+    if (!rast) {
+        nsvgDelete(image);
+        return -1;
+    }
+
+    int count = 0;
+    for (int s = 0; s < 3; s++) {
+        int sz = sizes[s];
+        float scale = (float)sz / image->width;
+        unsigned char* px = (unsigned char*)malloc(sz * sz * 4);
+        if (!px) continue;
+        nsvgRasterize(rast, image, 0, 0, scale, px, sz, sz, sz * 4);
+        icons[count].width = sz;
+        icons[count].height = sz;
+        icons[count].pixels = px;
+        buffers[count] = px;
+        count++;
+    }
+
+    nsvgDeleteRasterizer(rast);
+    nsvgDelete(image);
+
+    if (count > 0) {
+        glfwSetWindowIcon((GLFWwindow*)glfw_window, count, icons);
+    }
+
+    for (int i = 0; i < count; i++) {
+        free(buffers[i]);
+    }
+
+    return count > 0 ? 0 : -1;
 }
 
 } // extern "C"

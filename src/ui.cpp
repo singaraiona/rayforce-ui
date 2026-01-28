@@ -169,6 +169,10 @@ i32_t raygui_ui_init(nil_t) {
     float font_size = 16.0f * dpi_scale;
     io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", font_size);
 
+    // Large font for text/label widgets (index 1)
+    float large_font_size = 48.0f * dpi_scale;
+    io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", large_font_size);
+
     // Scale style for HiDPI (but not fonts - they're already sized correctly)
     ImGui::GetStyle().ScaleAllSizes(dpi_scale);
 
@@ -176,8 +180,9 @@ i32_t raygui_ui_init(nil_t) {
     ImGui_ImplGlfw_InitForOpenGL(g_window, true);
     ImGui_ImplOpenGL3_Init(g_glsl_version);
 
-    // Load background logo (non-fatal if missing)
+    // Load background logo and window icon (non-fatal if missing)
     raygui_logo_init("assets/images/logo.svg");
+    raygui_icon_init("assets/images/icon.svg", g_window);
 
     // Initialize widget registry
     raygui_registry_init();
@@ -333,8 +338,10 @@ i32_t raygui_ui_run(nil_t) {
         // Render background logo watermark (behind dockspace)
         raygui_logo_render();
 
-        // Create dockspace over the entire viewport
-        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
+        // Create dockspace — PassthruCentralNode makes empty areas transparent,
+        // so the background logo watermark shows through
+        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(),
+                                     ImGuiDockNodeFlags_PassthruCentralNode);
 
         // Render all registered widgets
         raygui_registry_render();

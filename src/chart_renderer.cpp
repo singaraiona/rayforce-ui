@@ -6,6 +6,7 @@
 
 #include "imgui.h"
 #include "implot.h"
+#include "implot_internal.h"
 
 // Make rayforce headers C++ compatible by redefining _Static_assert
 #define _Static_assert static_assert
@@ -311,7 +312,8 @@ static i64_t find_column(i64_t* sym_ids, i64_t ncols, const char* name) {
     return -1;
 }
 
-// Plot candlestick chart. Expects open/close/low/high columns.
+// Plot candlestick chart (adapted from ImPlot demo PlotCandlestick).
+// Expects table with open/close/low/high columns; uses sequential x indices.
 static void plot_candlestick(obj_p* cols, i64_t* sym_ids, i64_t ncols, i64_t nrows) {
     i64_t oi = find_column(sym_ids, ncols, "open");
     i64_t ci = find_column(sym_ids, ncols, "close");
@@ -332,31 +334,74 @@ static void plot_candlestick(obj_p* cols, i64_t* sym_ids, i64_t ncols, i64_t nro
     if (!is_numeric_type(open_col->type) || !is_numeric_type(close_col->type) ||
         !is_numeric_type(low_col->type)  || !is_numeric_type(high_col->type)) return;
 
-    ImU32 bull_col = IM_COL32(63, 185, 80, 255);   // #3FB950
-    ImU32 bear_col = IM_COL32(248, 81, 73, 255);    // #F85149
+    ImVec4 bull_vec(0.247f, 0.725f, 0.314f, 1.0f);  // #3FB950
+    ImVec4 bear_vec(0.973f, 0.318f, 0.286f, 1.0f);   // #F85149
 
-    float half_width = 0.35f;
-    ImDrawList* draw_list = ImPlot::GetPlotDrawList();
+    double half_width = 0.25;
+    int count = (int)nrows;
 
-    for (i64_t i = 0; i < nrows; i++) {
-        double o = get_numeric_value(open_col, i);
-        double c = get_numeric_value(close_col, i);
-        double l = get_numeric_value(low_col, i);
-        double h = get_numeric_value(high_col, i);
-        double x = (double)i;
+    // Hover tooltip
+    if (ImPlot::IsPlotHovered()) {
+        ImPlotPoint mouse = ImPlot::GetPlotMousePos();
+        int idx = (int)(mouse.x + 0.5);
+        if (idx >= 0 && idx < count) {
+            double o = get_numeric_value(open_col, idx);
+            double c = get_numeric_value(close_col, idx);
+            double l = get_numeric_value(low_col, idx);
+            double h = get_numeric_value(high_col, idx);
 
-        bool bull = c >= o;
-        ImU32 color = bull ? bull_col : bear_col;
+            // Highlight bar
+            ImDrawList* draw_list = ImPlot::GetPlotDrawList();
+            float tool_l = ImPlot::PlotToPixels((double)idx - half_width * 1.5, mouse.y).x;
+            float tool_r = ImPlot::PlotToPixels((double)idx + half_width * 1.5, mouse.y).x;
+            float tool_t = ImPlot::GetPlotPos().y;
+            float tool_b = tool_t + ImPlot::GetPlotSize().y;
+            ImPlot::PushPlotClipRect();
+            draw_list->AddRectFilled(ImVec2(tool_l, tool_t), ImVec2(tool_r, tool_b),
+                                     IM_COL32(128, 128, 128, 64));
+            ImPlot::PopPlotClipRect();
 
-        // Wick (high-low line)
-        ImVec2 wick_lo = ImPlot::PlotToPixels(ImPlotPoint(x, l));
-        ImVec2 wick_hi = ImPlot::PlotToPixels(ImPlotPoint(x, h));
-        draw_list->AddLine(wick_lo, wick_hi, color, 1.0f);
+            ImGui::BeginTooltip();
+            ImGui::Text("Bar:   %d", idx);
+            ImGui::Text("Open:  %.2f", o);
+            ImGui::Text("Close: %.2f", c);
+            ImGui::Text("Low:   %.2f", l);
+            ImGui::Text("High:  %.2f", h);
+            ImGui::EndTooltip();
+        }
+    }
 
-        // Body (open-close rect)
-        ImVec2 body_lo = ImPlot::PlotToPixels(ImPlotPoint(x - half_width, bull ? o : c));
-        ImVec2 body_hi = ImPlot::PlotToPixels(ImPlotPoint(x + half_width, bull ? c : o));
-        draw_list->AddRectFilled(body_lo, body_hi, color);
+    // Plot item (enables legend, auto-fit)
+    if (ImPlot::BeginItem("OHLC")) {
+        ImPlot::GetCurrentItem()->Color = IM_COL32(64, 64, 64, 255);
+
+        if (ImPlot::FitThisFrame()) {
+            for (int i = 0; i < count; i++) {
+                ImPlot::FitPoint(ImPlotPoint((double)i, get_numeric_value(low_col, i)));
+                ImPlot::FitPoint(ImPlotPoint((double)i, get_numeric_value(high_col, i)));
+            }
+        }
+
+        ImDrawList* draw_list = ImPlot::GetPlotDrawList();
+        for (int i = 0; i < count; i++) {
+            double o = get_numeric_value(open_col, i);
+            double c = get_numeric_value(close_col, i);
+            double l = get_numeric_value(low_col, i);
+            double h = get_numeric_value(high_col, i);
+            double x = (double)i;
+
+            ImU32 color = ImGui::GetColorU32(o > c ? bear_vec : bull_vec);
+
+            ImVec2 open_pos  = ImPlot::PlotToPixels(x - half_width, o);
+            ImVec2 close_pos = ImPlot::PlotToPixels(x + half_width, c);
+            ImVec2 low_pos   = ImPlot::PlotToPixels(x, l);
+            ImVec2 high_pos  = ImPlot::PlotToPixels(x, h);
+
+            draw_list->AddLine(low_pos, high_pos, color);
+            draw_list->AddRectFilled(open_pos, close_pos, color);
+        }
+
+        ImPlot::EndItem();
     }
 }
 
@@ -442,20 +487,35 @@ nil_t raygui_render_chart(raygui_widget_t* widget) {
     ImGui::Text("Points: %lld  Series: %lld", (long long)nrows, (long long)numeric_cols);
     ImGui::PopStyleColor();
 
-    // Chart type selector (stored in widget ui_state if needed for persistence)
-    // For now, default to line chart
-    static int chart_type = 0; // 0=Line, 1=Scatter, 2=Bar
+    // Check if data has OHLC columns for auto-detection
+    i64_t* sym_ids_check = AS_SYMBOL(keys);
+    bool has_ohlc = find_column(sym_ids_check, ncols, "open") >= 0 &&
+                    find_column(sym_ids_check, ncols, "close") >= 0 &&
+                    find_column(sym_ids_check, ncols, "low") >= 0 &&
+                    find_column(sym_ids_check, ncols, "high") >= 0;
+
+    // Per-widget chart type stored in ImGui state
+    ImGuiID ct_id = ImGui::GetID(widget->name);
+    ImGuiStorage* storage = ImGui::GetStateStorage();
+    int chart_type = storage->GetInt(ct_id, has_ohlc ? 3 : 0);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
-    ImGui::Combo("##charttype", &chart_type, "Line\0Scatter\0Bar\0Candlestick\0");
+    if (ImGui::Combo("##charttype", &chart_type, "Line\0Scatter\0Bar\0Candlestick\0")) {
+        storage->SetInt(ct_id, chart_type);
+    }
 
     ImGui::Separator();
 
     // Create ImPlot chart
     // Use ImPlotFlags_None for default interactive plot
     if (ImPlot::BeginPlot(widget->name, ImVec2(-1, -1), ImPlotFlags_None)) {
-        // Setup axes with auto-fit on first frame
-        ImPlot::SetupAxes("X", "Y", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+        // Setup axes — candlestick uses RangeFit for proper OHLC scaling
+        if (chart_type == 3) {
+            ImPlot::SetupAxes("Bar", "Price", ImPlotAxisFlags_AutoFit,
+                              ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_RangeFit);
+        } else {
+            ImPlot::SetupAxes("X", "Y", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+        }
 
         // Cache column pointers for performance
         obj_p* cols = AS_LIST(vals);
