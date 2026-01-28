@@ -118,7 +118,7 @@ SRC_C = src/main.c src/queue.c src/widget.c src/context.c src/rayforce_thread.c
 OBJ_C = $(SRC_C:.c=.o)
 
 # C++ source files (raygui)
-SRC_CXX = src/ui.cpp
+SRC_CXX = src/ui.cpp src/widget_registry.cpp
 OBJ_CXX = $(SRC_CXX:.cpp=.o)
 
 TARGET = raygui

@@ -26,6 +26,7 @@ extern "C" {
 #include "../include/raygui/context.h"
 #include "../include/raygui/message.h"
 #include "../include/raygui/queue.h"
+#include "../include/raygui/widget_registry.h"
 }
 
 // Maximum messages to process per frame to avoid blocking rendering
@@ -107,6 +108,9 @@ i32_t raygui_ui_init(nil_t) {
     ImGui_ImplGlfw_InitForOpenGL(g_window, true);
     ImGui_ImplOpenGL3_Init(g_glsl_version);
 
+    // Initialize widget registry
+    raygui_registry_init();
+
     g_initialized = true;
     return 0;
 }
@@ -148,12 +152,31 @@ i32_t raygui_ui_run(nil_t) {
                 // For now: just free message resources
                 switch (msg->type) {
                     case RAYGUI_MSG_WIDGET_CREATED:
-                        // TODO: Register widget in UI
+                        // Register widget in UI
+                        if (msg->widget) {
+                            raygui_registry_add(msg->widget);
+                        }
                         break;
                     case RAYGUI_MSG_DRAW:
-                        // TODO(Task 10): Store in widget->render_data
-                        // For now, queue for proper disposal in Rayforce thread
-                        if (msg->data) {
+                        // Update widget render_data and queue old data for drop
+                        if (msg->widget) {
+                            obj_p old_data = raygui_registry_update_data(msg->widget, msg->data);
+                            // Queue old data for drop in Rayforce thread (if not NULL)
+                            if (old_data) {
+                                raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+                                if (drop_msg) {
+                                    drop_msg->type = RAYGUI_MSG_DROP;
+                                    drop_msg->obj = old_data;
+                                    drop_msg->widget = nullptr;
+                                    drop_msg->expr = nullptr;
+                                    raygui_queue_push(g_ctx->ui_to_ray, drop_msg);
+                                    // Wake Rayforce to process the drop
+                                    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                    if (waker) poll_waker_wake(waker);
+                                }
+                            }
+                        } else if (msg->data) {
+                            // No widget - queue data for drop directly
                             raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
                             if (drop_msg) {
                                 drop_msg->type = RAYGUI_MSG_DROP;
@@ -161,11 +184,9 @@ i32_t raygui_ui_run(nil_t) {
                                 drop_msg->widget = nullptr;
                                 drop_msg->expr = nullptr;
                                 raygui_queue_push(g_ctx->ui_to_ray, drop_msg);
-                                // Wake Rayforce to process the drop
                                 poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
                                 if (waker) poll_waker_wake(waker);
                             }
-                            // Don't drop directly - Rayforce thread will handle it
                         }
                         break;
                     case RAYGUI_MSG_RESULT:
@@ -202,8 +223,8 @@ i32_t raygui_ui_run(nil_t) {
         // Create dockspace over the entire viewport
         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
 
-        // TODO: Render widgets (placeholder for now)
-        // This will be implemented when we add the widget registry
+        // Render all registered widgets
+        raygui_registry_render();
 
         // Rendering
         ImGui::Render();
@@ -225,6 +246,9 @@ nil_t raygui_ui_destroy(nil_t) {
     if (!g_initialized) {
         return;
     }
+
+    // Destroy widget registry (frees all widgets)
+    raygui_registry_destroy();
 
     // Cleanup ImGui
     ImGui_ImplOpenGL3_Shutdown();
