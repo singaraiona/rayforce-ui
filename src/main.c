@@ -5,8 +5,8 @@
 #include "../include/raygui/message.h"
 #include "../include/raygui/queue.h"
 #include "../include/raygui/rayforce_thread.h"
+#include "../include/raygui/ui.h"
 #include <pthread.h>
-#include <unistd.h>  // for sleep (temporary)
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -26,8 +26,8 @@ static char* raygui_strdup(const char* s) {
     return dup;
 }
 
-// Global state
-static raygui_ctx_t* g_ctx = NULL;
+// Global state (g_ctx is non-static so ui.cpp can access it)
+raygui_ctx_t* g_ctx = NULL;
 static pthread_t g_ray_thread;
 
 i32_t raygui_init(i32_t argc, str_p argv[]) {
@@ -38,9 +38,18 @@ i32_t raygui_init(i32_t argc, str_p argv[]) {
         return -1;
     }
 
+    // Initialize UI (GLFW/ImGui)
+    if (raygui_ui_init() != 0) {
+        fprintf(stderr, "Failed to initialize UI\n");
+        raygui_ctx_destroy(g_ctx);
+        g_ctx = NULL;
+        return -1;
+    }
+
     // Start Rayforce thread
     if (pthread_create(&g_ray_thread, NULL, raygui_rayforce_thread, g_ctx) != 0) {
         fprintf(stderr, "Failed to create Rayforce thread\n");
+        raygui_ui_destroy();
         raygui_ctx_destroy(g_ctx);
         g_ctx = NULL;
         return -1;
@@ -94,23 +103,8 @@ i32_t raygui_run(nil_t) {
         return 1;
     }
 
-    // Simple test loop for now (will add ImGui later)
-    while (!raygui_ctx_get_quit(g_ctx)) {
-        // Process messages from ray_to_ui queue
-        // For now: just drain and free messages
-        raygui_ray_msg_t* msg;
-        while ((msg = (raygui_ray_msg_t*)raygui_queue_pop(g_ctx->ray_to_ui)) != NULL) {
-            // Free message resources
-            if (msg->text) {
-                free(msg->text);
-            }
-            free(msg);
-        }
-
-        sleep(1);  // Temporary - will be replaced by glfwWaitEvents
-    }
-
-    return 0;
+    // Run the ImGui/GLFW main loop
+    return raygui_ui_run();
 }
 
 nil_t raygui_destroy(nil_t) {
@@ -150,6 +144,9 @@ nil_t raygui_destroy(nil_t) {
     if (join_result != 0) {
         fprintf(stderr, "Warning: pthread_join failed with error %d\n", join_result);
     }
+
+    // Destroy UI (GLFW/ImGui)
+    raygui_ui_destroy();
 
     // Destroy context
     raygui_ctx_destroy(g_ctx);
