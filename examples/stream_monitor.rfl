@@ -1,0 +1,8 @@
+;; Connect to server
+(set h (hopen "localhost:5110"))
+
+;; Create grid
+(set g (widget {type: 'grid name: "Quotes"}))
+
+;; Fetch and display data
+(draw g (write h "quotes"))
