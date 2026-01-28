@@ -289,6 +289,77 @@ static void plot_column_bars(const char* name, obj_p col, i64_t nrows) {
     }
 }
 
+// Helper to extract a double from a numeric column at a given index
+static double get_numeric_value(obj_p col, i64_t idx) {
+    switch (col->type) {
+        case TYPE_F64: return AS_F64(col)[idx];
+        case TYPE_I64: return (double)AS_I64(col)[idx];
+        case TYPE_I32: return (double)AS_I32(col)[idx];
+        case TYPE_I16: return (double)AS_I16(col)[idx];
+        case TYPE_U8:  return (double)AS_U8(col)[idx];
+        case TYPE_B8:  return AS_B8(col)[idx] ? 1.0 : 0.0;
+        default:       return 0.0;
+    }
+}
+
+// Find a column index by name. Returns -1 if not found.
+static i64_t find_column(i64_t* sym_ids, i64_t ncols, const char* name) {
+    for (i64_t i = 0; i < ncols; i++) {
+        const char* col_name = str_from_symbol(sym_ids[i]);
+        if (col_name && strcmp(col_name, name) == 0) return i;
+    }
+    return -1;
+}
+
+// Plot candlestick chart. Expects open/close/low/high columns.
+static void plot_candlestick(obj_p* cols, i64_t* sym_ids, i64_t ncols, i64_t nrows) {
+    i64_t oi = find_column(sym_ids, ncols, "open");
+    i64_t ci = find_column(sym_ids, ncols, "close");
+    i64_t li = find_column(sym_ids, ncols, "low");
+    i64_t hi = find_column(sym_ids, ncols, "high");
+
+    if (oi < 0 || ci < 0 || li < 0 || hi < 0) {
+        ImGui::TextDisabled("Candlestick requires open/close/low/high columns");
+        return;
+    }
+
+    obj_p open_col  = cols[oi];
+    obj_p close_col = cols[ci];
+    obj_p low_col   = cols[li];
+    obj_p high_col  = cols[hi];
+
+    if (!open_col || !close_col || !low_col || !high_col) return;
+    if (!is_numeric_type(open_col->type) || !is_numeric_type(close_col->type) ||
+        !is_numeric_type(low_col->type)  || !is_numeric_type(high_col->type)) return;
+
+    ImU32 bull_col = IM_COL32(63, 185, 80, 255);   // #3FB950
+    ImU32 bear_col = IM_COL32(248, 81, 73, 255);    // #F85149
+
+    float half_width = 0.35f;
+    ImDrawList* draw_list = ImPlot::GetPlotDrawList();
+
+    for (i64_t i = 0; i < nrows; i++) {
+        double o = get_numeric_value(open_col, i);
+        double c = get_numeric_value(close_col, i);
+        double l = get_numeric_value(low_col, i);
+        double h = get_numeric_value(high_col, i);
+        double x = (double)i;
+
+        bool bull = c >= o;
+        ImU32 color = bull ? bull_col : bear_col;
+
+        // Wick (high-low line)
+        ImVec2 wick_lo = ImPlot::PlotToPixels(ImPlotPoint(x, l));
+        ImVec2 wick_hi = ImPlot::PlotToPixels(ImPlotPoint(x, h));
+        draw_list->AddLine(wick_lo, wick_hi, color, 1.0f);
+
+        // Body (open-close rect)
+        ImVec2 body_lo = ImPlot::PlotToPixels(ImPlotPoint(x - half_width, bull ? o : c));
+        ImVec2 body_hi = ImPlot::PlotToPixels(ImPlotPoint(x + half_width, bull ? c : o));
+        draw_list->AddRectFilled(body_lo, body_hi, color);
+    }
+}
+
 extern "C" {
 
 nil_t raygui_render_chart(raygui_widget_t* widget) {
@@ -366,15 +437,17 @@ nil_t raygui_render_chart(raygui_widget_t* widget) {
         }
     }
 
-    // Display chart info
+    // Display chart info with secondary text color
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.545f, 0.580f, 0.620f, 1.0f));
     ImGui::Text("Points: %lld  Series: %lld", (long long)nrows, (long long)numeric_cols);
+    ImGui::PopStyleColor();
 
     // Chart type selector (stored in widget ui_state if needed for persistence)
     // For now, default to line chart
     static int chart_type = 0; // 0=Line, 1=Scatter, 2=Bar
     ImGui::SameLine();
     ImGui::SetNextItemWidth(100);
-    ImGui::Combo("##charttype", &chart_type, "Line\0Scatter\0Bar\0");
+    ImGui::Combo("##charttype", &chart_type, "Line\0Scatter\0Bar\0Candlestick\0");
 
     ImGui::Separator();
 
@@ -388,32 +461,25 @@ nil_t raygui_render_chart(raygui_widget_t* widget) {
         obj_p* cols = AS_LIST(vals);
         i64_t* sym_ids = AS_SYMBOL(keys);
 
-        // Plot each numeric column
-        for (i64_t col_idx = 0; col_idx < ncols; col_idx++) {
-            obj_p col = cols[col_idx];
-            if (col == nullptr) continue;
+        if (chart_type == 3) {
+            // Candlestick uses multiple columns together
+            plot_candlestick(cols, sym_ids, ncols, nrows);
+        } else {
+            // Plot each numeric column
+            for (i64_t col_idx = 0; col_idx < ncols; col_idx++) {
+                obj_p col = cols[col_idx];
+                if (col == nullptr) continue;
+                if (!is_numeric_type(col->type)) continue;
+                if (col->len != nrows) continue;
 
-            // Skip non-numeric columns
-            if (!is_numeric_type(col->type)) continue;
+                const char* col_name = str_from_symbol(sym_ids[col_idx]);
+                if (!col_name) col_name = "<unknown>";
 
-            // Verify column length
-            if (col->len != nrows) continue;
-
-            // Get column name
-            const char* col_name = str_from_symbol(sym_ids[col_idx]);
-            if (!col_name) col_name = "<unknown>";
-
-            // Plot based on selected chart type
-            switch (chart_type) {
-                case 0: // Line
-                    plot_column_line(col_name, col, nrows);
-                    break;
-                case 1: // Scatter
-                    plot_column_scatter(col_name, col, nrows);
-                    break;
-                case 2: // Bar
-                    plot_column_bars(col_name, col, nrows);
-                    break;
+                switch (chart_type) {
+                    case 0: plot_column_line(col_name, col, nrows); break;
+                    case 1: plot_column_scatter(col_name, col, nrows); break;
+                    case 2: plot_column_bars(col_name, col, nrows); break;
+                }
             }
         }
 

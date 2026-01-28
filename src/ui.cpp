@@ -12,6 +12,10 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "implot.h"
+
+#include "../include/raygui/theme.h"
+#include "../include/raygui/logo.h"
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -127,7 +131,7 @@ i32_t raygui_ui_init(nil_t) {
 #endif
 
     // Create window with graphics context
-    g_window = glfwCreateWindow(1280, 720, "raygui", nullptr, nullptr);
+    g_window = glfwCreateWindow(1280, 720, "Raygui", nullptr, nullptr);
     if (g_window == nullptr) {
         fprintf(stderr, "Failed to create GLFW window\n");
         glfwTerminate();
@@ -143,9 +147,10 @@ i32_t raygui_ui_init(nil_t) {
     float dpi_scale = (xscale > yscale) ? xscale : yscale;
     if (dpi_scale < 1.0f) dpi_scale = 1.0f;
 
-    // Setup Dear ImGui context
+    // Setup Dear ImGui and ImPlot contexts
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
@@ -157,8 +162,8 @@ i32_t raygui_ui_init(nil_t) {
     }
     // If get_config_path() fails, io.IniFilename remains "imgui.ini" (ImGui default)
 
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
+    // Apply dashboard theme (replaces StyleColorsDark)
+    raygui_theme_apply();
 
     // Load JetBrains Mono font at proper size for HiDPI
     float font_size = 16.0f * dpi_scale;
@@ -170,6 +175,9 @@ i32_t raygui_ui_init(nil_t) {
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(g_window, true);
     ImGui_ImplOpenGL3_Init(g_glsl_version);
+
+    // Load background logo (non-fatal if missing)
+    raygui_logo_init("assets/images/logo.svg");
 
     // Initialize widget registry
     raygui_registry_init();
@@ -189,7 +197,7 @@ i32_t raygui_ui_run(nil_t) {
         return -1;
     }
 
-    ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.0f);
+    ImVec4 clear_color = ImVec4(0.051f, 0.067f, 0.090f, 1.0f);
 
     // Main loop
     while (!glfwWindowShouldClose(g_window) && !raygui_ctx_get_quit(g_ctx)) {
@@ -322,6 +330,9 @@ i32_t raygui_ui_run(nil_t) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        // Render background logo watermark (behind dockspace)
+        raygui_logo_render();
+
         // Create dockspace over the entire viewport
         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
 
@@ -349,12 +360,16 @@ nil_t raygui_ui_destroy(nil_t) {
         return;
     }
 
+    // Destroy logo texture
+    raygui_logo_destroy();
+
     // Destroy widget registry (frees all widgets)
     raygui_registry_destroy();
 
-    // Cleanup ImGui
+    // Cleanup ImGui and ImPlot
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
 
     // Free ini path (after DestroyContext, which saves the layout)

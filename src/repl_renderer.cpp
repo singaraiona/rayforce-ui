@@ -97,10 +97,10 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
 
     repl_state_t* state = (repl_state_t*)widget->ui_state;
 
-    // Colors
-    ImVec4 prompt_color(0.3f, 0.8f, 0.3f, 1.0f);   // Green for prompt
-    ImVec4 result_color(0.9f, 0.9f, 0.9f, 1.0f);   // White for results
-    ImVec4 error_color(1.0f, 0.4f, 0.4f, 1.0f);    // Red for errors
+    // Colors (matched to theme palette)
+    ImVec4 prompt_color(0.247f, 0.725f, 0.314f, 1.0f);  // #3FB950
+    ImVec4 result_color(0.902f, 0.929f, 0.953f, 1.0f);  // #E6EDF3
+    ImVec4 error_color(0.973f, 0.318f, 0.286f, 1.0f);   // #F85149
 
     // Single scrollable region for entire terminal
     ImGui::BeginChild("##terminal", ImVec2(0, 0), false,
@@ -125,6 +125,13 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
                 ImGui::PopStyleColor();
                 break;
         }
+    }
+
+    // Subtle separator between output and input
+    if (!state->lines.empty()) {
+        ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(0.188f, 0.212f, 0.239f, 1.0f));
+        ImGui::Separator();
+        ImGui::PopStyleColor();
     }
 
     // Current input line: prompt + input field on same line

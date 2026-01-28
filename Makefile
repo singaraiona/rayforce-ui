@@ -111,14 +111,14 @@ CXXFLAGS = -std=c++11 $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -g 
 INCLUDES_C = -Iinclude -I$(RAYFORCE_DIR)/core $(IMGUI_INCLUDES) $(GLFW_INCLUDES)
 
 # Includes for C++ files (exclude rayforce core to avoid shadowing system headers)
-INCLUDES_CXX = -Iinclude $(IMGUI_INCLUDES) $(GLFW_INCLUDES)
+INCLUDES_CXX = -Iinclude $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -Ideps/nanosvg
 
 # C source files
 SRC_C = src/main.c src/queue.c src/widget.c src/context.c src/rayforce_thread.c
 OBJ_C = $(SRC_C:.c=.o)
 
 # C++ source files (raygui)
-SRC_CXX = src/ui.cpp src/widget_registry.cpp src/grid_renderer.cpp src/chart_renderer.cpp src/text_renderer.cpp src/repl_renderer.cpp
+SRC_CXX = src/ui.cpp src/widget_registry.cpp src/grid_renderer.cpp src/chart_renderer.cpp src/text_renderer.cpp src/repl_renderer.cpp src/theme.cpp src/logo.cpp
 OBJ_CXX = $(SRC_CXX:.cpp=.o)
 
 TARGET = raygui

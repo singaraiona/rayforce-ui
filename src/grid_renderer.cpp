@@ -282,18 +282,20 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         }
     }
 
-    // Display table info and selection status
+    // Display table info with secondary text color
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.545f, 0.580f, 0.620f, 1.0f));
     if (ui_state && ui_state->selected_row >= 0) {
         ImGui::Text("Rows: %lld  Columns: %lld  Selected: %d",
                     (long long)nrows, (long long)ncols, ui_state->selected_row);
         ImGui::SameLine();
+        ImGui::PopStyleColor();
         if (ImGui::SmallButton("Clear")) {
             ui_state->selected_row = -1;
-            // Clear post_query by sending null expression
             send_post_query(widget, nullptr);
         }
     } else {
         ImGui::Text("Rows: %lld  Columns: %lld", (long long)nrows, (long long)ncols);
+        ImGui::PopStyleColor();
     }
     ImGui::Separator();
 

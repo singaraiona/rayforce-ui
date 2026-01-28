@@ -1,10 +1,27 @@
 ;; Connect to server
 (set h (hopen "localhost:5110"))
 
-;; Create grid
-(set g (widget {type: 'grid name: "Quotes"}))
+;; Trades grid — last 100 trades
+(set t (widget {type: 'grid name: "Trades"}))
 
-;; Fetch and display data
-(draw g (write h "quotes"))
+;; Quotes grid — last 100 quotes
+(set q (widget {type: 'grid name: "Quotes"}))
 
-(timer 1000 10000000 (fn [x] (draw g (write h "(take quotes -100)"))))
+;; Trades Summary
+(set ts (widget {type: 'text name: "Trades Count"}))
+
+;; Quotes Summary
+(set qs (widget {type: 'text name: "Quotes Count"}))
+
+;; Price Chart
+(set pc (widget {type: 'chart name: "Price Chart"}))
+
+;; Single timer drives all widget updates
+(timer 100 10000000 (fn [x]
+  (let r (write h "((fn [] (list (take quotes -100) (take trades -100) (count trades) (count quotes))))"))
+  (draw q (at r 0))
+  (draw t (at r 1))
+  (draw ts (at r 2))
+  (draw qs (at r 3))))
+
+  ;;(draw pc (write h "quotes"))))
