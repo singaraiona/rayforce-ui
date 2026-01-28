@@ -12,6 +12,7 @@
 extern "C" {
 #include "../include/raygui/widget_registry.h"
 #include "../include/raygui/widget.h"
+#include "../include/raygui/grid_renderer.h"
 }
 
 // Global widget storage
@@ -53,6 +54,29 @@ nil_t raygui_registry_render(nil_t) {
 
         // Begin widget window with close button
         ImGui::Begin(widget->name, (bool*)&widget->is_open);
+
+        // Render based on widget type
+        switch (widget->type) {
+            case RAYGUI_WIDGET_GRID:
+                raygui_render_grid(widget);
+                break;
+            case RAYGUI_WIDGET_CHART:
+                // TODO(Task 15): Implement chart rendering
+                ImGui::TextDisabled("Chart widget not implemented");
+                break;
+            case RAYGUI_WIDGET_TEXT:
+                // TODO(Task 16): Implement text rendering
+                ImGui::TextDisabled("Text widget not implemented");
+                break;
+            case RAYGUI_WIDGET_REPL:
+                // TODO(Task 12): Implement REPL rendering
+                ImGui::TextDisabled("REPL widget not implemented");
+                break;
+            default:
+                ImGui::TextDisabled("Unknown widget type: %d", widget->type);
+                break;
+        }
+
         ImGui::End();
     }
 }
