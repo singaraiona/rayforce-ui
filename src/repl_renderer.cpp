@@ -8,6 +8,10 @@
 
 #include "imgui.h"
 
+// Scrollback limits to prevent unbounded memory growth
+static const int MAX_HISTORY_SIZE = 1000;
+static const int MAX_OUTPUT_LINES = 10000;
+
 // Make rayforce headers C++ compatible by redefining _Static_assert
 #define _Static_assert static_assert
 
@@ -24,6 +28,7 @@ struct repl_state_t {
     std::vector<std::string> output;   // Output lines
     int history_pos;                   // Current position in history (-1 = new input)
     bool scroll_to_bottom;             // Flag to auto-scroll
+    bool refocus_input;                // Flag to refocus input field next frame
     std::string saved_input;           // Saved input when browsing history
 };
 
@@ -89,6 +94,7 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
         state->input_buf[0] = '\0';
         state->history_pos = -1;
         state->scroll_to_bottom = false;
+        state->refocus_input = false;
         widget->ui_state = state;
     }
 
@@ -138,6 +144,12 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
     // Set input field width to fill available space minus a small margin
     ImGui::SetNextItemWidth(-1);
 
+    // Set focus to input field on first frame or after Enter was pressed
+    if (ImGui::IsWindowAppearing() || state->refocus_input) {
+        ImGui::SetKeyboardFocusHere(0);  // Focus the next widget (InputText)
+        state->refocus_input = false;
+    }
+
     // Input field with history callback
     ImGuiInputTextFlags input_flags = ImGuiInputTextFlags_EnterReturnsTrue |
                                        ImGuiInputTextFlags_CallbackHistory;
@@ -146,18 +158,22 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
                                            sizeof(state->input_buf), input_flags,
                                            input_callback, state);
 
-    // Set focus to input field on first frame or when Enter is pressed
-    if (ImGui::IsWindowAppearing()) {
-        ImGui::SetKeyboardFocusHere(-1);
-    }
-
     // Handle Enter key
     if (enter_pressed && state->input_buf[0] != '\0') {
         std::string input(state->input_buf);
 
         // Add to history (avoid duplicates of last entry)
         if (state->history.empty() || state->history.back() != input) {
+            // Enforce history size limit
+            if ((int)state->history.size() >= MAX_HISTORY_SIZE) {
+                state->history.erase(state->history.begin());
+            }
             state->history.push_back(input);
+        }
+
+        // Enforce output size limit before adding new line
+        if ((int)state->output.size() >= MAX_OUTPUT_LINES) {
+            state->output.erase(state->output.begin());
         }
 
         // Add "> input" to output
@@ -176,9 +192,11 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
         // Scroll to bottom
         state->scroll_to_bottom = true;
 
-        // Reclaim focus
-        ImGui::SetKeyboardFocusHere(-1);
+        // Request focus for next frame (SetKeyboardFocusHere must be called before InputText)
+        state->refocus_input = true;
     }
+
+    return;
 }
 
 nil_t raygui_repl_add_result(raygui_widget_t* widget, const char* text) {
@@ -190,6 +208,11 @@ nil_t raygui_repl_add_result(raygui_widget_t* widget, const char* text) {
     repl_state_t* state = (repl_state_t*)widget->ui_state;
     if (state == nullptr) {
         return;
+    }
+
+    // Enforce output size limit before adding new line
+    if ((int)state->output.size() >= MAX_OUTPUT_LINES) {
+        state->output.erase(state->output.begin());
     }
 
     // Append text to output vector
