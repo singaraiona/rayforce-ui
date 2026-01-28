@@ -160,6 +160,8 @@ i32_t main(i32_t argc, str_p argv[]) {
         return -1;
     }
 
+    // Note: REPL widget is created by Rayforce thread after runtime starts
+
     i32_t code = raygui_run();
     raygui_destroy();
 

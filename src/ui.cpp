@@ -137,6 +137,12 @@ i32_t raygui_ui_init(nil_t) {
     glfwMakeContextCurrent(g_window);
     glfwSwapInterval(1); // Enable vsync
 
+    // Get HiDPI scale factor
+    float xscale, yscale;
+    glfwGetWindowContentScale(g_window, &xscale, &yscale);
+    float dpi_scale = (xscale > yscale) ? xscale : yscale;
+    if (dpi_scale < 1.0f) dpi_scale = 1.0f;
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -153,6 +159,13 @@ i32_t raygui_ui_init(nil_t) {
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
+
+    // Load JetBrains Mono font at proper size for HiDPI
+    float font_size = 16.0f * dpi_scale;
+    io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", font_size);
+
+    // Scale style for HiDPI (but not fonts - they're already sized correctly)
+    ImGui::GetStyle().ScaleAllSizes(dpi_scale);
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(g_window, true);

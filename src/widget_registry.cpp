@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <stdio.h>
+#include <cfloat>  // FLT_MAX
 
 #include "imgui.h"
 
@@ -64,6 +65,16 @@ nil_t raygui_registry_render(nil_t) {
     for (raygui_widget_t* widget : g_widgets) {
         if (widget == nullptr || !widget->is_open) {
             continue;
+        }
+
+        // Set minimum size constraints for usability
+        ImGui::SetNextWindowSizeConstraints(ImVec2(400, 300), ImVec2(FLT_MAX, FLT_MAX));
+
+        // Set initial size on first appearance (only applies once)
+        if (widget->type == RAYGUI_WIDGET_REPL) {
+            ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
+        } else {
+            ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
         }
 
         // Begin widget window with close button
