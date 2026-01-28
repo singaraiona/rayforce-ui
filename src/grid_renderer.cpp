@@ -132,6 +132,9 @@ static void render_cell(obj_p col, i64_t row) {
 
 extern "C" {
 
+// Note: render_data lifetime is managed by the widget registry and must remain
+// valid during render. The caller is responsible for ensuring render_data
+// points to valid memory throughout the widget's lifecycle.
 nil_t raygui_render_grid(raygui_widget_t* widget) {
     if (widget == nullptr) {
         return;
@@ -193,6 +196,20 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
     }
     i64_t nrows = first_col->len;
 
+    // Validate all columns have the same length
+    for (i64_t col_idx = 1; col_idx < ncols; col_idx++) {
+        obj_p col = AS_LIST(vals)[col_idx];
+        if (col == nullptr) {
+            ImGui::TextDisabled("Column %lld is null", (long long)col_idx);
+            return;
+        }
+        if (col->len != nrows) {
+            ImGui::TextDisabled("Column %lld length mismatch: %lld vs %lld",
+                (long long)col_idx, (long long)col->len, (long long)nrows);
+            return;
+        }
+    }
+
     // Display table info
     ImGui::Text("Rows: %lld  Columns: %lld", (long long)nrows, (long long)ncols);
     ImGui::Separator();
@@ -216,6 +233,7 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         for (i64_t col_idx = 0; col_idx < ncols; col_idx++) {
             i64_t sym_id = AS_SYMBOL(keys)[col_idx];
             const char* col_name = str_from_symbol(sym_id);
+            if (!col_name) col_name = "<invalid>";
 
             // Get column type for sizing hints
             obj_p col = AS_LIST(vals)[col_idx];
@@ -271,6 +289,9 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         ImGuiListClipper clipper;
         clipper.Begin((int)nrows);
 
+        // Cache column pointers for performance (avoid repeated AS_LIST dereference)
+        obj_p* cols = AS_LIST(vals);
+
         while (clipper.Step()) {
             for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
                 ImGui::TableNextRow();
@@ -279,7 +300,7 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
                 for (i64_t col_idx = 0; col_idx < ncols; col_idx++) {
                     ImGui::TableSetColumnIndex((int)col_idx);
 
-                    obj_p col = AS_LIST(vals)[col_idx];
+                    obj_p col = cols[col_idx];
                     if (col == nullptr) {
                         ImGui::TextDisabled("null");
                         continue;
