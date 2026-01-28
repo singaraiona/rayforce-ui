@@ -5,11 +5,17 @@
 *.dylib
 /rayforce-ui
 
+# Dependencies (vendored, not tracked)
+/deps/
+
 # Editor files
 *.swp
 *~
 .vscode/
 .idea/
+
+# Claude Code
+.claude/
 
 # macOS
 .DS_Store
