@@ -151,17 +151,37 @@ i32_t raygui_ui_run(nil_t) {
                         // TODO: Register widget in UI
                         break;
                     case RAYGUI_MSG_DRAW:
-                        // TODO: Update widget data
-                        // Note: msg->data will be consumed by renderer, drop here if not used
+                        // TODO(Task 10): Store in widget->render_data
+                        // For now, queue for proper disposal in Rayforce thread
                         if (msg->data) {
-                            drop_obj(msg->data);
+                            raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+                            if (drop_msg) {
+                                drop_msg->type = RAYGUI_MSG_DROP;
+                                drop_msg->obj = msg->data;
+                                drop_msg->widget = nullptr;
+                                drop_msg->expr = nullptr;
+                                raygui_queue_push(g_ctx->ui_to_ray, drop_msg);
+                                // Wake Rayforce to process the drop
+                                poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                if (waker) poll_waker_wake(waker);
+                            }
+                            // Don't drop directly - Rayforce thread will handle it
                         }
                         break;
                     case RAYGUI_MSG_RESULT:
-                        // TODO: Display in REPL widget
-                        // Note: msg->data may contain result object
+                        // TODO(Task 12): Display in REPL widget
                         if (msg->data) {
-                            drop_obj(msg->data);
+                            // Same pattern - queue for drop
+                            raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+                            if (drop_msg) {
+                                drop_msg->type = RAYGUI_MSG_DROP;
+                                drop_msg->obj = msg->data;
+                                drop_msg->widget = nullptr;
+                                drop_msg->expr = nullptr;
+                                raygui_queue_push(g_ctx->ui_to_ray, drop_msg);
+                                poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                if (waker) poll_waker_wake(waker);
+                            }
                         }
                         break;
                 }
