@@ -2,12 +2,14 @@
 // Include system string.h via absolute path to avoid conflict with deps/rayforce/core/string.h
 #include "/usr/include/string.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include "../deps/rayforce/core/runtime.h"
 #include "../deps/rayforce/core/poll.h"
 #include "../deps/rayforce/core/symbols.h"
 #include "../deps/rayforce/core/ops.h"
 #include "../deps/rayforce/core/util.h"
 #include "../deps/rayforce/core/dynlib.h"  // For ext_t (external object structure)
+#include "../deps/rayforce/core/io.h"      // For ray_load (script execution)
 #include "../include/raygui/context.h"
 #include "../include/raygui/message.h"
 #include "../include/raygui/queue.h"
@@ -404,7 +406,25 @@ void* raygui_rayforce_thread(void* arg) {
     // Step 4: Register raygui functions (widget, draw)
     register_raygui_functions();
 
-    // Step 5: Create poll waker for UI messages
+    // Step 5: Load script file if provided via command line
+    {
+        obj_p file_arg = runtime_get_arg("file");
+        if (!is_null(file_arg)) {
+            obj_p res = ray_load(file_arg);
+            drop_obj(file_arg);
+            if (IS_ERR(res)) {
+                // Print error but continue - GUI still runs
+                obj_p fmt = obj_fmt(res, B8_TRUE);
+                if (fmt) {
+                    fprintf(stderr, "Script error: %.*s\n", (i32_t)fmt->len, AS_C8(fmt));
+                    drop_obj(fmt);
+                }
+            }
+            drop_obj(res);
+        }
+    }
+
+    // Step 6: Create poll waker for UI messages
     waker = poll_waker_create(runtime->poll, on_ui_message, ctx);
     if (!waker) {
         g_ctx = NULL;
@@ -414,13 +434,13 @@ void* raygui_rayforce_thread(void* arg) {
         return NULL;
     }
 
-    // Step 6: Store waker in context
+    // Step 7: Store waker in context
     raygui_ctx_set_waker(ctx, waker);
 
-    // Step 7: Signal ready
+    // Step 8: Signal ready
     raygui_ctx_signal_ready(ctx);
 
-    // Step 8: Create default REPL widget
+    // Step 9: Create default REPL widget
     {
         obj_p repl_result = eval_str("(set *repl* (widget {type: 'repl name: \"REPL\"}))");
         if (repl_result) {
@@ -428,10 +448,10 @@ void* raygui_rayforce_thread(void* arg) {
         }
     }
 
-    // Step 9: Run poll loop (blocks until exit)
+    // Step 10: Run poll loop (blocks until exit)
     runtime_run();
 
-    // Step 9: Cleanup
+    // Cleanup
     g_ctx = NULL;
     // Waker is a separate allocation - must be explicitly destroyed
     raygui_ctx_set_waker(ctx, NULL);
