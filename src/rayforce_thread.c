@@ -127,6 +127,11 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
         return ray_err("widget: expects 1 argument (config dict)");
     }
 
+    // Fail fast: check context before doing any work
+    if (!g_ctx) {
+        return ray_err("widget: no raygui context available");
+    }
+
     obj_p config = x[0];
     if (config->type != TYPE_DICT) {
         return ray_err("widget: argument must be a dict");
@@ -174,12 +179,6 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
         return ray_err("widget: failed to create widget");
     }
 
-    // Check we have context
-    if (!g_ctx) {
-        raygui_widget_destroy(w);
-        return ray_err("widget: no raygui context available");
-    }
-
     // Send WIDGET_CREATED message to UI
     raygui_ray_msg_t* msg = malloc(sizeof(raygui_ray_msg_t));
     if (!msg) {
@@ -202,6 +201,15 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
 // fn_draw: (draw widget data)
 // widget is external object, data is the data to render
 // Returns the widget for chaining
+//
+// KNOWN TECHNICAL DEBT: Widget lifecycle race condition
+// The widget pointer validity relies on the assumption that the UI thread
+// will not destroy the widget while we hold a reference to it. This is safe
+// under the current design where widgets live for the session lifetime and
+// are only destroyed during shutdown. A proper fix would require either:
+// - Widget IDs with lookup validation on the UI side, or
+// - Reference counting with atomic operations
+// For now, we assume widgets are never destroyed mid-session.
 static obj_p fn_draw(obj_p* x, i64_t n) {
     if (n != 2) {
         return ray_err("draw: expects 2 arguments (widget, data)");
@@ -226,6 +234,9 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
 
     // Clone data for UI (UI will own this copy and drop when done)
     obj_p data_copy = clone_obj(data);
+    if (!data_copy) {
+        return ray_err("draw: failed to clone data");
+    }
 
     // Send DRAW message to UI
     raygui_ray_msg_t* msg = malloc(sizeof(raygui_ray_msg_t));
