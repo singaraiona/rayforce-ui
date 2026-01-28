@@ -17,12 +17,6 @@ nil_t raygui_registry_destroy(nil_t);
 // Add widget to registry (takes ownership of widget pointer)
 nil_t raygui_registry_add(raygui_widget_t* widget);
 
-// Remove widget from registry by pointer
-nil_t raygui_registry_remove(raygui_widget_t* widget);
-
-// Get widget count
-i64_t raygui_registry_count(nil_t);
-
 // Render all widgets - called from UI main loop
 nil_t raygui_registry_render(nil_t);
 

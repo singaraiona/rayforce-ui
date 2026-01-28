@@ -2,7 +2,6 @@
 // Widget registry implementation for UI-side widget tracking
 
 #include <vector>
-#include <algorithm>
 #include <stdio.h>
 
 #include "imgui.h"
@@ -40,20 +39,6 @@ nil_t raygui_registry_add(raygui_widget_t* widget) {
     g_widgets.push_back(widget);
 }
 
-nil_t raygui_registry_remove(raygui_widget_t* widget) {
-    if (widget == nullptr) {
-        return;
-    }
-    auto it = std::find(g_widgets.begin(), g_widgets.end(), widget);
-    if (it != g_widgets.end()) {
-        g_widgets.erase(it);
-    }
-}
-
-i64_t raygui_registry_count(nil_t) {
-    return static_cast<i64_t>(g_widgets.size());
-}
-
 nil_t raygui_registry_render(nil_t) {
     for (raygui_widget_t* widget : g_widgets) {
         if (widget == nullptr || !widget->is_open) {
@@ -61,18 +46,7 @@ nil_t raygui_registry_render(nil_t) {
         }
 
         // Begin widget window with close button
-        if (ImGui::Begin(widget->name, (bool*)&widget->is_open)) {
-            // Type-specific render function (stub for now)
-            const char* type_name = raygui_widget_type_name(widget->type);
-            ImGui::Text("Widget Type: %s", type_name);
-
-            // Show data status
-            if (widget->render_data != nullptr) {
-                ImGui::Text("Has render data: yes");
-            } else {
-                ImGui::Text("Has render data: no");
-            }
-        }
+        ImGui::Begin(widget->name, (bool*)&widget->is_open);
         ImGui::End();
     }
 }
