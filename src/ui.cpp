@@ -126,15 +126,9 @@ i32_t raygui_ui_run(nil_t) {
 
     // Main loop
     while (!glfwWindowShouldClose(g_window) && !raygui_ctx_get_quit(g_ctx)) {
-        // Check if there's pending work in the queue
-        bool has_pending_work = !raygui_queue_empty(g_ctx->ray_to_ui);
-
-        // Use wait with timeout if no pending work, otherwise poll
-        if (has_pending_work) {
-            glfwPollEvents();
-        } else {
-            glfwWaitEventsTimeout(0.1); // 100ms timeout
-        }
+        // Poll events and use timeout to avoid busy-waiting
+        // Note: We always poll first, then process messages
+        glfwWaitEventsTimeout(0.016); // ~60fps timeout
 
         // Skip rendering if window is minimized
         if (glfwGetWindowAttrib(g_window, GLFW_ICONIFIED) != 0) {
@@ -143,29 +137,41 @@ i32_t raygui_ui_run(nil_t) {
         }
 
         // Process messages from ray_to_ui queue (limited per frame)
+        // Note: raygui_queue_pop returns NULL if queue is empty or NULL,
+        // so we don't need a separate empty check (avoids TOCTOU race)
         int messages_processed = 0;
         raygui_ray_msg_t* msg;
-        while (messages_processed < MAX_MESSAGES_PER_FRAME &&
-               (msg = (raygui_ray_msg_t*)raygui_queue_pop(g_ctx->ray_to_ui)) != nullptr) {
-            // TODO: Process message based on type
-            // For now: just free message resources
-            switch (msg->type) {
-                case RAYGUI_MSG_WIDGET_CREATED:
-                    // TODO: Register widget in UI
-                    break;
-                case RAYGUI_MSG_DRAW:
-                    // TODO: Update widget data
-                    break;
-                case RAYGUI_MSG_RESULT:
-                    // TODO: Display in REPL widget
-                    break;
-            }
+        if (g_ctx->ray_to_ui != nullptr) {
+            while (messages_processed < MAX_MESSAGES_PER_FRAME &&
+                   (msg = (raygui_ray_msg_t*)raygui_queue_pop(g_ctx->ray_to_ui)) != nullptr) {
+                // TODO: Process message based on type
+                // For now: just free message resources
+                switch (msg->type) {
+                    case RAYGUI_MSG_WIDGET_CREATED:
+                        // TODO: Register widget in UI
+                        break;
+                    case RAYGUI_MSG_DRAW:
+                        // TODO: Update widget data
+                        // Note: msg->data will be consumed by renderer, drop here if not used
+                        if (msg->data) {
+                            drop_obj(msg->data);
+                        }
+                        break;
+                    case RAYGUI_MSG_RESULT:
+                        // TODO: Display in REPL widget
+                        // Note: msg->data may contain result object
+                        if (msg->data) {
+                            drop_obj(msg->data);
+                        }
+                        break;
+                }
 
-            if (msg->text) {
-                free(msg->text);
+                if (msg->text) {
+                    free(msg->text);
+                }
+                free(msg);
+                messages_processed++;
             }
-            free(msg);
-            messages_processed++;
         }
 
         // Start the Dear ImGui frame
