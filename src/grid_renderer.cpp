@@ -307,7 +307,8 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         ImGuiTableFlags_RowBg |
         ImGuiTableFlags_Borders |
         ImGuiTableFlags_ScrollX |
-        ImGuiTableFlags_ScrollY;
+        ImGuiTableFlags_ScrollY |
+        ImGuiTableFlags_SizingFixedFit;  // Required for specifying column widths
 
     // Use available content region for table
     ImVec2 outer_size = ImVec2(0.0f, 0.0f);
