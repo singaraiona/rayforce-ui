@@ -23,6 +23,9 @@ i32_t raygui_run(nil_t);
 // Cleanup
 nil_t raygui_destroy(nil_t);
 
+// Send expression to Rayforce thread for evaluation
+i32_t raygui_eval(const char* expr);
+
 #ifdef __cplusplus
 }
 #endif
