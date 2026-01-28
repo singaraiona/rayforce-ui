@@ -14,14 +14,12 @@ RAYFORCE_LIB = $(RAYFORCE_DIR)/librayforce.a
 # ImGui/ImPlot directories
 IMGUI_DIR = deps/imgui
 IMPLOT_DIR = deps/implot
-GLFW_DIR = deps/glfw
 
-# ImGui source files
+# ImGui source files (excluding imgui_demo.cpp - not needed for production)
 IMGUI_SRC = $(IMGUI_DIR)/imgui.cpp \
             $(IMGUI_DIR)/imgui_draw.cpp \
             $(IMGUI_DIR)/imgui_tables.cpp \
             $(IMGUI_DIR)/imgui_widgets.cpp \
-            $(IMGUI_DIR)/imgui_demo.cpp \
             $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp \
             $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 
@@ -36,9 +34,10 @@ IMPLOT_OBJ = $(IMPLOT_SRC:.cpp=.o)
 # ImGui includes
 IMGUI_INCLUDES = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -I$(IMPLOT_DIR)
 
-# GLFW flags (try pkg-config first, fallback to local)
-GLFW_CFLAGS = $(shell pkg-config --cflags glfw3 2>/dev/null || echo "-I$(GLFW_DIR)/include")
-GLFW_LIBS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw")
+# GLFW flags (requires system installation via package manager)
+# Install: apt install libglfw3-dev (Debian/Ubuntu), brew install glfw (macOS)
+GLFW_CFLAGS = $(shell pkg-config --cflags glfw3)
+GLFW_LIBS = $(shell pkg-config --libs glfw3)
 
 # C++ flags for ImGui
 CXXFLAGS = -std=c++11 $(IMGUI_INCLUDES) $(GLFW_CFLAGS) -fPIC -Wall -Wextra -g -O0
