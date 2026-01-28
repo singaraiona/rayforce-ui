@@ -14,6 +14,7 @@ extern "C" {
 #include "../include/raygui/widget.h"
 #include "../include/raygui/grid_renderer.h"
 #include "../include/raygui/chart_renderer.h"
+#include "../include/raygui/text_renderer.h"
 #include "../include/raygui/repl_renderer.h"
 }
 
@@ -77,8 +78,7 @@ nil_t raygui_registry_render(nil_t) {
                 raygui_render_chart(widget);
                 break;
             case RAYGUI_WIDGET_TEXT:
-                // TODO(Task 16): Implement text rendering
-                ImGui::TextDisabled("Text widget not implemented");
+                raygui_render_text(widget);
                 break;
             case RAYGUI_WIDGET_REPL:
                 raygui_render_repl(widget);
