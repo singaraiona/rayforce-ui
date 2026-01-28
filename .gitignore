@@ -1,0 +1,15 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+raygui
+
+# Editor files
+*.swp
+*~
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
