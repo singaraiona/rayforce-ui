@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__computer-control__take_screenshot",
+      "mcp__computer-control__list_windows",
+      "mcp__computer-control__wait_milliseconds",
+      "mcp__computer-control__activate_window",
+      "mcp__computer-control__take_screenshot_with_ocr",
+      "mcp__computer-control__click_screen",
+      "mcp__computer-control__type_text",
+      "mcp__computer-control__press_keys",
+      "Bash(*)",
+      "Skill(commit-commands:commit)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "connect-apps"
+  ]
+}
