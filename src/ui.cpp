@@ -169,10 +169,27 @@ i32_t raygui_ui_run(nil_t) {
                                     drop_msg->obj = old_data;
                                     drop_msg->widget = nullptr;
                                     drop_msg->expr = nullptr;
-                                    raygui_queue_push(g_ctx->ui_to_ray, drop_msg);
-                                    // Wake Rayforce to process the drop
-                                    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
-                                    if (waker) poll_waker_wake(waker);
+                                    if (raygui_queue_push(g_ctx->ui_to_ray, drop_msg) != 0) {
+                                        // Queue push failed - fall back to direct drop
+                                        // NOTE: This is not ideal as drop_obj should run on
+                                        // Rayforce thread, but leaking is worse. At shutdown
+                                        // this is acceptable; during normal operation it's
+                                        // a rare edge case (queue full).
+                                        drop_obj(old_data);
+                                        free(drop_msg);
+                                    } else {
+                                        // Wake Rayforce to process the drop
+                                        poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                        if (waker) poll_waker_wake(waker);
+                                    }
+                                } else {
+                                    // Malloc failed - fall back to direct drop_obj
+                                    // NOTE: This is a fallback for extremely rare malloc
+                                    // failure. Direct drop_obj from UI thread is not ideal
+                                    // but acceptable at shutdown; during normal operation
+                                    // this may cause thread safety issues, but malloc failure
+                                    // is extremely rare, making this an acceptable tradeoff.
+                                    drop_obj(old_data);
                                 }
                             }
                         } else if (msg->data) {
@@ -183,9 +200,17 @@ i32_t raygui_ui_run(nil_t) {
                                 drop_msg->obj = msg->data;
                                 drop_msg->widget = nullptr;
                                 drop_msg->expr = nullptr;
-                                raygui_queue_push(g_ctx->ui_to_ray, drop_msg);
-                                poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
-                                if (waker) poll_waker_wake(waker);
+                                if (raygui_queue_push(g_ctx->ui_to_ray, drop_msg) != 0) {
+                                    // Queue push failed - fall back to direct drop
+                                    drop_obj(msg->data);
+                                    free(drop_msg);
+                                } else {
+                                    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                    if (waker) poll_waker_wake(waker);
+                                }
+                            } else {
+                                // Malloc failed - fall back to direct drop_obj
+                                drop_obj(msg->data);
                             }
                         }
                         break;
@@ -199,9 +224,17 @@ i32_t raygui_ui_run(nil_t) {
                                 drop_msg->obj = msg->data;
                                 drop_msg->widget = nullptr;
                                 drop_msg->expr = nullptr;
-                                raygui_queue_push(g_ctx->ui_to_ray, drop_msg);
-                                poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
-                                if (waker) poll_waker_wake(waker);
+                                if (raygui_queue_push(g_ctx->ui_to_ray, drop_msg) != 0) {
+                                    // Queue push failed - fall back to direct drop
+                                    drop_obj(msg->data);
+                                    free(drop_msg);
+                                } else {
+                                    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                    if (waker) poll_waker_wake(waker);
+                                }
+                            } else {
+                                // Malloc failed - fall back to direct drop_obj
+                                drop_obj(msg->data);
                             }
                         }
                         break;

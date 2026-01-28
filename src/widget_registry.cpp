@@ -26,6 +26,12 @@ nil_t raygui_registry_init(nil_t) {
 
 nil_t raygui_registry_destroy(nil_t) {
     // Free all widgets
+    // NOTE: Thread safety consideration - registry_destroy is called AFTER UI loop
+    // exits but BEFORE Rayforce thread is joined. This means drop_obj calls in
+    // widget_destroy happen from the UI thread, not the Rayforce thread.
+    // TODO: This is known technical debt. For proper thread safety, widgets with
+    // render_data should queue drops to Rayforce thread before destruction.
+    // Current approach is acceptable for shutdown but not ideal.
     for (raygui_widget_t* widget : g_widgets) {
         raygui_widget_destroy(widget);
     }
@@ -54,6 +60,11 @@ nil_t raygui_registry_render(nil_t) {
 obj_p raygui_registry_update_data(raygui_widget_t* widget, obj_p new_data) {
     if (widget == nullptr) {
         return nullptr;
+    }
+
+    // Check for same data - avoid use-after-free if caller passes same object
+    if (new_data == widget->render_data) {
+        return nullptr;  // Same data, no swap needed
     }
 
     // Store old data
