@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "imgui.h"
 
@@ -12,6 +13,68 @@
 extern "C" {
 #include "../include/raygui/grid_renderer.h"
 #include "../include/raygui/widget.h"
+#include "../include/raygui/context.h"
+#include "../include/raygui/message.h"
+#include "../include/raygui/queue.h"
+#include "../deps/rayforce/core/poll.h"
+
+// Global context declared in main.c
+extern raygui_ctx_t* g_ctx;
+}
+
+// UI state for grid selection (stored in widget->ui_state)
+typedef struct grid_ui_state_t {
+    int selected_row;  // -1 = no selection
+} grid_ui_state_t;
+
+// Helper to send MSG_SET_POST_QUERY to Rayforce thread
+static void send_post_query(raygui_widget_t* widget, const char* expr) {
+    if (!g_ctx || !widget) return;
+
+    // Allocate message
+    raygui_ui_msg_t* msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+    if (!msg) return;
+
+    // Duplicate expression string
+    char* expr_copy = nullptr;
+    if (expr) {
+        size_t len = strlen(expr);
+        expr_copy = (char*)malloc(len + 1);
+        if (!expr_copy) {
+            free(msg);
+            return;
+        }
+        memcpy(expr_copy, expr, len + 1);
+    }
+
+    msg->type = RAYGUI_MSG_SET_POST_QUERY;
+    msg->expr = expr_copy;
+    msg->obj = nullptr;
+    msg->widget = widget;
+
+    // Push to queue
+    if (!raygui_queue_push(g_ctx->ui_to_ray, msg)) {
+        if (expr_copy) free(expr_copy);
+        free(msg);
+        return;
+    }
+
+    // Wake Rayforce thread
+    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+    if (waker) {
+        poll_waker_wake(waker);
+    }
+}
+
+// Build a filter expression for the selected row
+// Expression: {[x] (take 1 (drop ROW_INDEX x))}
+// This creates a lambda that takes data and returns just the selected row
+static char* build_row_filter_expr(int row_index) {
+    // Max length: "{[x] (take 1 (drop 999999999 x))}" = ~40 chars
+    char* buf = (char*)malloc(64);
+    if (!buf) return nullptr;
+    snprintf(buf, 64, "{[x] (take 1 (drop %d x))}", row_index);
+    return buf;
 }
 
 // Helper function to render a single cell based on column type
@@ -210,8 +273,29 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         }
     }
 
-    // Display table info
-    ImGui::Text("Rows: %lld  Columns: %lld", (long long)nrows, (long long)ncols);
+    // Initialize UI state if needed
+    grid_ui_state_t* ui_state = (grid_ui_state_t*)widget->ui_state;
+    if (!ui_state) {
+        ui_state = (grid_ui_state_t*)malloc(sizeof(grid_ui_state_t));
+        if (ui_state) {
+            ui_state->selected_row = -1;
+            widget->ui_state = ui_state;
+        }
+    }
+
+    // Display table info and selection status
+    if (ui_state && ui_state->selected_row >= 0) {
+        ImGui::Text("Rows: %lld  Columns: %lld  Selected: %d",
+                    (long long)nrows, (long long)ncols, ui_state->selected_row);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear")) {
+            ui_state->selected_row = -1;
+            // Clear post_query by sending null expression
+            send_post_query(widget, nullptr);
+        }
+    } else {
+        ImGui::Text("Rows: %lld  Columns: %lld", (long long)nrows, (long long)ncols);
+    }
     ImGui::Separator();
 
     // Create ImGui table with virtualization
@@ -296,6 +380,9 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
             for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
                 ImGui::TableNextRow();
 
+                // Check if this row is selected
+                bool is_selected = (ui_state && ui_state->selected_row == row);
+
                 // Render each cell in the row
                 for (i64_t col_idx = 0; col_idx < ncols; col_idx++) {
                     ImGui::TableSetColumnIndex((int)col_idx);
@@ -310,6 +397,36 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
                     if (row >= col->len) {
                         ImGui::TextDisabled("OOB");
                         continue;
+                    }
+
+                    // For the first column, add a selectable that spans all columns
+                    if (col_idx == 0) {
+                        // Create unique ID for this row's selectable
+                        char selectable_id[32];
+                        snprintf(selectable_id, sizeof(selectable_id), "##row%d", row);
+
+                        // Selectable spans all columns and is drawn behind cell content
+                        if (ImGui::Selectable(selectable_id, is_selected,
+                                              ImGuiSelectableFlags_SpanAllColumns |
+                                              ImGuiSelectableFlags_AllowOverlap)) {
+                            // Row was clicked
+                            if (ui_state) {
+                                if (ui_state->selected_row == row) {
+                                    // Clicking same row deselects
+                                    ui_state->selected_row = -1;
+                                    send_post_query(widget, nullptr);
+                                } else {
+                                    // Select new row
+                                    ui_state->selected_row = row;
+                                    char* expr = build_row_filter_expr(row);
+                                    if (expr) {
+                                        send_post_query(widget, expr);
+                                        free(expr);
+                                    }
+                                }
+                            }
+                        }
+                        ImGui::SameLine();
                     }
 
                     // Render cell with zero-copy direct buffer access
