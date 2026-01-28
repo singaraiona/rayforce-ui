@@ -34,8 +34,20 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
             break;
 
         case RAYGUI_MSG_SET_POST_QUERY:
-            // TODO: Set widget post_query
-            // For now, just free the expression string
+            if (msg->widget && msg->expr) {
+                // Parse the expression string into an obj_p
+                obj_p query = parse_str(msg->expr);
+                if (query && !IS_ERR(query)) {
+                    // Drop old post_query if exists
+                    if (msg->widget->post_query) {
+                        drop_obj(msg->widget->post_query);
+                    }
+                    msg->widget->post_query = query;
+                } else {
+                    // Parse failed - drop the error result if any
+                    if (query) drop_obj(query);
+                }
+            }
             if (msg->expr) {
                 free(msg->expr);
             }
@@ -232,21 +244,45 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
         return ray_err("draw: no raygui context available");
     }
 
-    // Clone data for UI (UI will own this copy and drop when done)
-    obj_p data_copy = clone_obj(data);
-    if (!data_copy) {
-        return ray_err("draw: failed to clone data");
+    // Apply post_query transformation if widget has one
+    obj_p final_data;
+    if (w->post_query) {
+        // Clone the post_query for evaluation (try_obj may consume it)
+        obj_p query_clone = clone_obj(w->post_query);
+        if (!query_clone) {
+            return ray_err("draw: failed to clone post_query");
+        }
+
+        // Apply the query to the data: (query data)
+        // try_obj evaluates query with data as the argument
+        obj_p result = try_obj(query_clone, data);
+        if (result && !IS_ERR(result)) {
+            final_data = result;
+        } else {
+            // Query failed, fall back to original data
+            if (result) drop_obj(result);
+            final_data = clone_obj(data);
+            if (!final_data) {
+                return ray_err("draw: failed to clone data after query error");
+            }
+        }
+    } else {
+        // No post_query, clone data directly
+        final_data = clone_obj(data);
+        if (!final_data) {
+            return ray_err("draw: failed to clone data");
+        }
     }
 
     // Send DRAW message to UI
     raygui_ray_msg_t* msg = malloc(sizeof(raygui_ray_msg_t));
     if (!msg) {
-        drop_obj(data_copy);
+        drop_obj(final_data);
         return ray_err("draw: failed to allocate message");
     }
     msg->type = RAYGUI_MSG_DRAW;
     msg->widget = w;
-    msg->data = data_copy;
+    msg->data = final_data;
     msg->text = NULL;
 
     raygui_queue_push(g_ctx->ray_to_ui, msg);
