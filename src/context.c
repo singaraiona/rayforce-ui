@@ -6,7 +6,8 @@ raygui_ctx_t* raygui_ctx_create(i32_t argc, str_p argv[]) {
     raygui_ctx_t* ctx = calloc(1, sizeof(raygui_ctx_t));
     if (!ctx) return NULL;
 
-    // Store command line arguments
+    // Store command line arguments (shallow copy)
+    // NOTE: Caller must ensure argv remains valid for context lifetime
     ctx->argc = argc;
     ctx->argv = argv;
 
@@ -67,18 +68,52 @@ nil_t raygui_ctx_destroy(raygui_ctx_t* ctx) {
 nil_t raygui_ctx_wait_ready(raygui_ctx_t* ctx) {
     if (!ctx) return;
 
-    pthread_mutex_lock(&ctx->ready_mutex);
+    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
     while (!ctx->ready) {
         pthread_cond_wait(&ctx->ready_cond, &ctx->ready_mutex);
     }
-    pthread_mutex_unlock(&ctx->ready_mutex);
+    (void)pthread_mutex_unlock(&ctx->ready_mutex);
 }
 
 nil_t raygui_ctx_signal_ready(raygui_ctx_t* ctx) {
     if (!ctx) return;
 
-    pthread_mutex_lock(&ctx->ready_mutex);
+    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
     ctx->ready = B8_TRUE;
-    pthread_cond_signal(&ctx->ready_cond);
-    pthread_mutex_unlock(&ctx->ready_mutex);
+    (void)pthread_cond_signal(&ctx->ready_cond);
+    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+}
+
+nil_t raygui_ctx_set_quit(raygui_ctx_t* ctx, b8_t quit) {
+    if (!ctx) return;
+
+    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
+    ctx->quit = quit;
+    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+}
+
+b8_t raygui_ctx_get_quit(raygui_ctx_t* ctx) {
+    if (!ctx) return B8_TRUE;  // Safe default: quit if ctx is invalid
+
+    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return B8_TRUE;
+    b8_t quit = ctx->quit;
+    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    return quit;
+}
+
+nil_t raygui_ctx_set_waker(raygui_ctx_t* ctx, poll_waker_p waker) {
+    if (!ctx) return;
+
+    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
+    ctx->waker = waker;
+    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+}
+
+poll_waker_p raygui_ctx_get_waker(raygui_ctx_t* ctx) {
+    if (!ctx) return NULL;
+
+    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return NULL;
+    poll_waker_p waker = ctx->waker;
+    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    return waker;
 }
