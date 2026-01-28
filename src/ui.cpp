@@ -27,6 +27,7 @@ extern "C" {
 #include "../include/raygui/message.h"
 #include "../include/raygui/queue.h"
 #include "../include/raygui/widget_registry.h"
+#include "../include/raygui/repl_renderer.h"
 }
 
 // Maximum messages to process per frame to avoid blocking rendering
@@ -215,9 +216,15 @@ i32_t raygui_ui_run(nil_t) {
                         }
                         break;
                     case RAYGUI_MSG_RESULT:
-                        // TODO(Task 12): Display in REPL widget
+                        // Display result in REPL widget
+                        if (msg->text) {
+                            raygui_widget_t* repl = raygui_registry_find_by_type(RAYGUI_WIDGET_REPL);
+                            if (repl) {
+                                raygui_repl_add_result(repl, msg->text);
+                            }
+                        }
+                        // Queue data for drop if present
                         if (msg->data) {
-                            // Same pattern - queue for drop
                             raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
                             if (drop_msg) {
                                 drop_msg->type = RAYGUI_MSG_DROP;

@@ -13,6 +13,7 @@ extern "C" {
 #include "../include/raygui/widget_registry.h"
 #include "../include/raygui/widget.h"
 #include "../include/raygui/grid_renderer.h"
+#include "../include/raygui/repl_renderer.h"
 }
 
 // Global widget storage
@@ -34,6 +35,17 @@ nil_t raygui_registry_destroy(nil_t) {
     // render_data should queue drops to Rayforce thread before destruction.
     // Current approach is acceptable for shutdown but not ideal.
     for (raygui_widget_t* widget : g_widgets) {
+        if (widget != nullptr) {
+            // Free type-specific ui_state (must use delete for C++ objects)
+            switch (widget->type) {
+                case RAYGUI_WIDGET_REPL:
+                    raygui_repl_free_state(widget);
+                    break;
+                default:
+                    // Other widget types use plain malloc/free for ui_state
+                    break;
+            }
+        }
         raygui_widget_destroy(widget);
     }
     g_widgets.clear();
@@ -69,8 +81,7 @@ nil_t raygui_registry_render(nil_t) {
                 ImGui::TextDisabled("Text widget not implemented");
                 break;
             case RAYGUI_WIDGET_REPL:
-                // TODO(Task 12): Implement REPL rendering
-                ImGui::TextDisabled("REPL widget not implemented");
+                raygui_render_repl(widget);
                 break;
             default:
                 ImGui::TextDisabled("Unknown widget type: %d", widget->type);
@@ -99,6 +110,15 @@ obj_p raygui_registry_update_data(raygui_widget_t* widget, obj_p new_data) {
 
     // Return old data for caller to queue for drop
     return old_data;
+}
+
+raygui_widget_t* raygui_registry_find_by_type(raygui_widget_type_t type) {
+    for (raygui_widget_t* widget : g_widgets) {
+        if (widget != nullptr && widget->type == type) {
+            return widget;
+        }
+    }
+    return nullptr;
 }
 
 } // extern "C"

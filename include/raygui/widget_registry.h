@@ -24,6 +24,10 @@ nil_t raygui_registry_render(nil_t);
 // Returns old render_data that should be queued for drop
 obj_p raygui_registry_update_data(raygui_widget_t* widget, obj_p new_data);
 
+// Find first widget of specified type
+// Returns NULL if not found
+raygui_widget_t* raygui_registry_find_by_type(raygui_widget_type_t type);
+
 #ifdef __cplusplus
 }
 #endif
