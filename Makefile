@@ -125,6 +125,14 @@ TARGET = raygui
 
 default: rayforce_lib $(TARGET)
 
+release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$(STD) -O3 -DNDEBUG -march=native -fsigned-char -m64
+release: CXXFLAGS = -std=c++11 $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -O3 -DNDEBUG
+release: GLFW_CFLAGS = -fPIC -Wall -std=c99 -O3 -D_GNU_SOURCE $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
+release: rayforce_lib_release $(TARGET)
+
+rayforce_lib_release:
+	$(MAKE) -C $(RAYFORCE_DIR) lib
+
 rayforce_lib:
 	$(MAKE) -C $(RAYFORCE_DIR) lib-debug
 
@@ -162,4 +170,4 @@ clean:
 	rm -f $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(TARGET)
 	$(MAKE) -C $(RAYFORCE_DIR) clean
 
-.PHONY: default clean rayforce_lib deps
+.PHONY: default release clean rayforce_lib rayforce_lib_release deps
