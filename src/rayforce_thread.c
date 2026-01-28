@@ -7,6 +7,7 @@
 #include "../deps/rayforce/core/symbols.h"
 #include "../deps/rayforce/core/ops.h"
 #include "../deps/rayforce/core/util.h"
+#include "../deps/rayforce/core/dynlib.h"  // For ext_t (external object structure)
 #include "../include/raygui/context.h"
 #include "../include/raygui/message.h"
 #include "../include/raygui/queue.h"
@@ -26,9 +27,46 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
 
     switch (msg->type) {
         case RAYGUI_MSG_EVAL:
-            // TODO: Evaluate expression and send result back
-            // For now, just free the expression string
             if (msg->expr) {
+                // Evaluate expression
+                obj_p result = eval_str(msg->expr);
+
+                // Format result for display
+                char* result_text = NULL;
+                if (result) {
+                    obj_p fmt = obj_fmt(result, B8_TRUE);
+                    if (fmt && fmt->type == TYPE_C8) {
+                        // Copy formatted string
+                        result_text = (char*)malloc(fmt->len + 1);
+                        if (result_text) {
+                            memcpy(result_text, AS_C8(fmt), fmt->len);
+                            result_text[fmt->len] = '\0';
+                        }
+                        drop_obj(fmt);
+                    }
+                    drop_obj(result);
+                }
+
+                // Send result back to UI
+                if (result_text) {
+                    raygui_ray_msg_t* reply = (raygui_ray_msg_t*)malloc(sizeof(raygui_ray_msg_t));
+                    if (reply) {
+                        reply->type = RAYGUI_MSG_RESULT;
+                        reply->widget = NULL;
+                        reply->data = NULL;
+                        reply->text = result_text;
+
+                        if (raygui_queue_push(ctx->ray_to_ui, reply)) {
+                            glfwPostEmptyEvent();  // Wake UI thread
+                        } else {
+                            free(result_text);
+                            free(reply);
+                        }
+                    } else {
+                        free(result_text);
+                    }
+                }
+
                 free(msg->expr);
             }
             break;
@@ -237,7 +275,10 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
         return ray_err("draw: first argument must be a widget");
     }
 
-    raygui_widget_t* w = (raygui_widget_t*)widget_obj->obj;
+    // Extract widget pointer from external object
+    // TYPE_EXT stores data in ext_t structure: { raw_p ptr; nil_t (*drop)(raw_p); }
+    ext_p ext = (ext_p)AS_C8(widget_obj);
+    raygui_widget_t* w = (raygui_widget_t*)ext->ptr;
     if (!w) {
         return ray_err("draw: widget is null");
     }
@@ -379,7 +420,15 @@ void* raygui_rayforce_thread(void* arg) {
     // Step 7: Signal ready
     raygui_ctx_signal_ready(ctx);
 
-    // Step 8: Run poll loop (blocks until exit)
+    // Step 8: Create default REPL widget
+    {
+        obj_p repl_result = eval_str("(set *repl* (widget {type: 'repl name: \"REPL\"}))");
+        if (repl_result) {
+            drop_obj(repl_result);
+        }
+    }
+
+    // Step 9: Run poll loop (blocks until exit)
     runtime_run();
 
     // Step 9: Cleanup
