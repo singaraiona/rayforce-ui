@@ -5,6 +5,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -42,6 +45,45 @@ static void glfw_error_callback(int error, const char* description) {
 static GLFWwindow* g_window = nullptr;
 static const char* g_glsl_version = nullptr;
 static bool g_initialized = false;
+static char* g_ini_path = nullptr;  // ImGui layout persistence path
+
+// Get config directory path, creating it if necessary
+// Returns allocated string that caller must free, or nullptr on failure
+static char* get_config_path(void) {
+    const char* home = getenv("HOME");
+    if (!home) return nullptr;
+
+    // Use ~/.config/raygui/ as config directory
+    const char* config_subdir = "/.config/raygui";
+    const char* ini_filename = "/layout.ini";
+
+    size_t dir_len = strlen(home) + strlen(config_subdir);
+    size_t path_len = dir_len + strlen(ini_filename) + 1;
+
+    // Create config directory if it doesn't exist
+    char* dir_path = (char*)malloc(dir_len + 1);
+    if (!dir_path) return nullptr;
+    snprintf(dir_path, dir_len + 1, "%s%s", home, config_subdir);
+
+    // Create ~/.config if needed
+    char* config_dir = (char*)malloc(strlen(home) + strlen("/.config") + 1);
+    if (config_dir) {
+        snprintf(config_dir, strlen(home) + strlen("/.config") + 1, "%s/.config", home);
+        mkdir(config_dir, 0755);  // Ignore error if exists
+        free(config_dir);
+    }
+
+    // Create ~/.config/raygui if needed
+    mkdir(dir_path, 0755);  // Ignore error if exists
+    free(dir_path);
+
+    // Return full path to ini file
+    char* ini_path = (char*)malloc(path_len);
+    if (!ini_path) return nullptr;
+    snprintf(ini_path, path_len, "%s%s%s", home, config_subdir, ini_filename);
+
+    return ini_path;
+}
 
 // External context (set by main.c)
 extern raygui_ctx_t* g_ctx;
@@ -101,6 +143,13 @@ i32_t raygui_ui_init(nil_t) {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
+
+    // Set up persistent layout file (ImGui auto-saves on shutdown, auto-loads on startup)
+    g_ini_path = get_config_path();
+    if (g_ini_path) {
+        io.IniFilename = g_ini_path;
+    }
+    // If get_config_path() fails, io.IniFilename remains "imgui.ini" (ImGui default)
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -294,6 +343,12 @@ nil_t raygui_ui_destroy(nil_t) {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    // Free ini path (after DestroyContext, which saves the layout)
+    if (g_ini_path) {
+        free(g_ini_path);
+        g_ini_path = nullptr;
+    }
 
     // Cleanup GLFW
     if (g_window) {
