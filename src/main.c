@@ -133,10 +133,23 @@ nil_t raygui_destroy(nil_t) {
         if (waker) {
             poll_waker_wake(waker);
         }
+    } else {
+        // Malloc failed - set quit flag directly so Rayforce thread can still exit
+        fprintf(stderr, "Warning: Failed to allocate quit message, setting quit flag directly\n");
+        raygui_ctx_set_quit(g_ctx, 1);
+
+        // Wake the thread so it can see the quit flag
+        poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+        if (waker) {
+            poll_waker_wake(waker);
+        }
     }
 
-    // Join thread
-    pthread_join(g_ray_thread, NULL);
+    // Join thread - continue with cleanup even if join fails
+    int join_result = pthread_join(g_ray_thread, NULL);
+    if (join_result != 0) {
+        fprintf(stderr, "Warning: pthread_join failed with error %d\n", join_result);
+    }
 
     // Destroy context
     raygui_ctx_destroy(g_ctx);
