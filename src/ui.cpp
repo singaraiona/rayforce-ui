@@ -1,5 +1,5 @@
 // src/ui.cpp
-// ImGui/GLFW UI implementation for raygui
+// ImGui/GLFW UI implementation for rayforce-ui
 
 // Include C string functions before ImGui (ImGui uses memset, memcmp, strcmp)
 #include <string.h>
@@ -14,8 +14,8 @@
 #include "imgui_impl_opengl3.h"
 #include "implot.h"
 
-#include "../include/raygui/theme.h"
-#include "../include/raygui/logo.h"
+#include "../include/rfui/theme.h"
+#include "../include/rfui/logo.h"
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -27,14 +27,14 @@
 // (rayforce uses C11 _Static_assert, C++ uses static_assert)
 #define _Static_assert static_assert
 
-// Include C headers for raygui
+// Include C headers for rayforce-ui
 extern "C" {
-#include "../include/raygui/ui.h"
-#include "../include/raygui/context.h"
-#include "../include/raygui/message.h"
-#include "../include/raygui/queue.h"
-#include "../include/raygui/widget_registry.h"
-#include "../include/raygui/repl_renderer.h"
+#include "../include/rfui/ui.h"
+#include "../include/rfui/context.h"
+#include "../include/rfui/message.h"
+#include "../include/rfui/queue.h"
+#include "../include/rfui/widget_registry.h"
+#include "../include/rfui/repl_renderer.h"
 }
 
 // Maximum messages to process per frame to avoid blocking rendering
@@ -57,8 +57,8 @@ static char* get_config_path(void) {
     const char* home = getenv("HOME");
     if (!home) return nullptr;
 
-    // Use ~/.config/raygui/ as config directory
-    const char* config_subdir = "/.config/raygui";
+    // Use ~/.config/rfui/ as config directory
+    const char* config_subdir = "/.config/rayforce-ui";
     const char* ini_filename = "/layout.ini";
 
     size_t dir_len = strlen(home) + strlen(config_subdir);
@@ -77,7 +77,7 @@ static char* get_config_path(void) {
         free(config_dir);
     }
 
-    // Create ~/.config/raygui if needed
+    // Create ~/.config/rayforce-ui if needed
     mkdir(dir_path, 0755);  // Ignore error if exists
     free(dir_path);
 
@@ -90,11 +90,11 @@ static char* get_config_path(void) {
 }
 
 // External context (set by main.c)
-extern raygui_ctx_t* g_ctx;
+extern rfui_ctx_t* g_ctx;
 
 extern "C" {
 
-i32_t raygui_ui_init(nil_t) {
+i32_t rfui_ui_init(nil_t) {
     if (g_initialized) {
         fprintf(stderr, "UI already initialized\n");
         return -1;
@@ -131,7 +131,7 @@ i32_t raygui_ui_init(nil_t) {
 #endif
 
     // Create window with graphics context
-    g_window = glfwCreateWindow(1280, 720, "Raygui", nullptr, nullptr);
+    g_window = glfwCreateWindow(1280, 720, "Rayforce UI", nullptr, nullptr);
     if (g_window == nullptr) {
         fprintf(stderr, "Failed to create GLFW window\n");
         glfwTerminate();
@@ -163,11 +163,19 @@ i32_t raygui_ui_init(nil_t) {
     // If get_config_path() fails, io.IniFilename remains "imgui.ini" (ImGui default)
 
     // Apply dashboard theme (replaces StyleColorsDark)
-    raygui_theme_apply();
+    rfui_theme_apply();
 
     // Load JetBrains Mono font at proper size for HiDPI
     float font_size = 16.0f * dpi_scale;
     io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", font_size);
+
+    // Merge FontAwesome icons into the regular font
+    static const ImWchar icon_ranges[] = { 0xf000, 0xf8ff, 0 };
+    ImFontConfig icon_cfg;
+    icon_cfg.MergeMode = true;
+    icon_cfg.PixelSnapH = true;
+    icon_cfg.GlyphMinAdvanceX = font_size;
+    io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.otf", font_size, &icon_cfg, icon_ranges);
 
     // Large font for text/label widgets (index 1)
     float large_font_size = 48.0f * dpi_scale;
@@ -181,17 +189,17 @@ i32_t raygui_ui_init(nil_t) {
     ImGui_ImplOpenGL3_Init(g_glsl_version);
 
     // Load background logo and window icon (non-fatal if missing)
-    raygui_logo_init("assets/images/logo.svg");
-    raygui_icon_init("assets/images/icon.svg", g_window);
+    rfui_logo_init("assets/images/logo.svg");
+    rfui_icon_init("assets/images/icon.svg", g_window);
 
     // Initialize widget registry
-    raygui_registry_init();
+    rfui_registry_init();
 
     g_initialized = true;
     return 0;
 }
 
-i32_t raygui_ui_run(nil_t) {
+i32_t rfui_ui_run(nil_t) {
     if (!g_initialized || !g_window) {
         fprintf(stderr, "UI not initialized\n");
         return -1;
@@ -205,7 +213,7 @@ i32_t raygui_ui_run(nil_t) {
     ImVec4 clear_color = ImVec4(0.051f, 0.067f, 0.090f, 1.0f);
 
     // Main loop
-    while (!glfwWindowShouldClose(g_window) && !raygui_ctx_get_quit(g_ctx)) {
+    while (!glfwWindowShouldClose(g_window) && !rfui_ctx_get_quit(g_ctx)) {
         // Poll events and use timeout to avoid busy-waiting
         // Note: We always poll first, then process messages
         glfwWaitEventsTimeout(0.016); // ~60fps timeout
@@ -217,48 +225,48 @@ i32_t raygui_ui_run(nil_t) {
         }
 
         // Process messages from ray_to_ui queue (limited per frame)
-        // Note: raygui_queue_pop returns NULL if queue is empty or NULL,
+        // Note: rfui_queue_pop returns NULL if queue is empty or NULL,
         // so we don't need a separate empty check (avoids TOCTOU race)
         int messages_processed = 0;
-        raygui_ray_msg_t* msg;
+        rfui_ray_msg_t* msg;
         if (g_ctx->ray_to_ui != nullptr) {
             while (messages_processed < MAX_MESSAGES_PER_FRAME &&
-                   (msg = (raygui_ray_msg_t*)raygui_queue_pop(g_ctx->ray_to_ui)) != nullptr) {
+                   (msg = (rfui_ray_msg_t*)rfui_queue_pop(g_ctx->ray_to_ui)) != nullptr) {
                 // TODO: Process message based on type
                 // For now: just free message resources
                 switch (msg->type) {
-                    case RAYGUI_MSG_WIDGET_CREATED:
+                    case RFUI_MSG_WIDGET_CREATED:
                         // Register widget in UI
                         if (msg->widget) {
-                            raygui_registry_add(msg->widget);
+                            rfui_registry_add(msg->widget);
                         }
                         break;
-                    case RAYGUI_MSG_DRAW:
+                    case RFUI_MSG_DRAW:
                         // Update widget render_data and queue old data for drop
                         if (msg->widget) {
                             // For text widgets, store pre-formatted string in ui_state
-                            if (msg->widget->type == RAYGUI_WIDGET_TEXT && msg->text) {
+                            if (msg->widget->type == RFUI_WIDGET_TEXT && msg->text) {
                                 if (msg->widget->ui_state) {
                                     free(msg->widget->ui_state);
                                 }
                                 msg->widget->ui_state = msg->text;
                                 msg->text = nullptr;
                             }
-                            obj_p old_data = raygui_registry_update_data(msg->widget, msg->data);
+                            obj_p old_data = rfui_registry_update_data(msg->widget, msg->data);
                             // Queue old data for drop in Rayforce thread (if not NULL)
                             if (old_data) {
-                                raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+                                rfui_ui_msg_t* drop_msg = (rfui_ui_msg_t*)malloc(sizeof(rfui_ui_msg_t));
                                 if (drop_msg) {
-                                    drop_msg->type = RAYGUI_MSG_DROP;
+                                    drop_msg->type = RFUI_MSG_DROP;
                                     drop_msg->obj = old_data;
                                     drop_msg->widget = nullptr;
                                     drop_msg->expr = nullptr;
-                                    if (!raygui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
+                                    if (!rfui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
                                         // Queue full - leak rather than crash
                                         // (drop_obj requires Rayforce thread runtime)
                                         free(drop_msg);
                                     } else {
-                                        poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                        poll_waker_p waker = rfui_ctx_get_waker(g_ctx);
                                         if (waker) poll_waker_wake(waker);
                                     }
                                 } else {
@@ -268,19 +276,19 @@ i32_t raygui_ui_run(nil_t) {
                             }
                         } else if (msg->data) {
                             // No widget - queue data for drop directly
-                            raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+                            rfui_ui_msg_t* drop_msg = (rfui_ui_msg_t*)malloc(sizeof(rfui_ui_msg_t));
                             if (drop_msg) {
-                                drop_msg->type = RAYGUI_MSG_DROP;
+                                drop_msg->type = RFUI_MSG_DROP;
                                 drop_msg->obj = msg->data;
                                 drop_msg->widget = nullptr;
                                 drop_msg->expr = nullptr;
-                                if (!raygui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
+                                if (!rfui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
                                     // Queue push failed - fall back to direct drop
                                     // Leak (drop_obj requires Rayforce thread)
                                         (void)msg->data;
                                     free(drop_msg);
                                 } else {
-                                    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                    poll_waker_p waker = rfui_ctx_get_waker(g_ctx);
                                     if (waker) poll_waker_wake(waker);
                                 }
                             } else {
@@ -289,29 +297,29 @@ i32_t raygui_ui_run(nil_t) {
                             }
                         }
                         break;
-                    case RAYGUI_MSG_RESULT:
+                    case RFUI_MSG_RESULT:
                         // Display result in REPL widget
                         if (msg->text) {
-                            raygui_widget_t* repl = raygui_registry_find_by_type(RAYGUI_WIDGET_REPL);
+                            rfui_widget_t* repl = rfui_registry_find_by_type(RFUI_WIDGET_REPL);
                             if (repl) {
-                                raygui_repl_add_result(repl, msg->text);
+                                rfui_repl_add_result(repl, msg->text);
                             }
                         }
                         // Queue data for drop if present
                         if (msg->data) {
-                            raygui_ui_msg_t* drop_msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+                            rfui_ui_msg_t* drop_msg = (rfui_ui_msg_t*)malloc(sizeof(rfui_ui_msg_t));
                             if (drop_msg) {
-                                drop_msg->type = RAYGUI_MSG_DROP;
+                                drop_msg->type = RFUI_MSG_DROP;
                                 drop_msg->obj = msg->data;
                                 drop_msg->widget = nullptr;
                                 drop_msg->expr = nullptr;
-                                if (!raygui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
+                                if (!rfui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
                                     // Queue push failed - fall back to direct drop
                                     // Leak (drop_obj requires Rayforce thread)
                                         (void)msg->data;
                                     free(drop_msg);
                                 } else {
-                                    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+                                    poll_waker_p waker = rfui_ctx_get_waker(g_ctx);
                                     if (waker) poll_waker_wake(waker);
                                 }
                             } else {
@@ -336,7 +344,7 @@ i32_t raygui_ui_run(nil_t) {
         ImGui::NewFrame();
 
         // Render background logo watermark (behind dockspace)
-        raygui_logo_render();
+        rfui_logo_render();
 
         // Create dockspace — PassthruCentralNode makes empty areas transparent,
         // so the background logo watermark shows through
@@ -344,7 +352,7 @@ i32_t raygui_ui_run(nil_t) {
                                      ImGuiDockNodeFlags_PassthruCentralNode);
 
         // Render all registered widgets
-        raygui_registry_render();
+        rfui_registry_render();
 
         // Rendering
         ImGui::Render();
@@ -362,16 +370,16 @@ i32_t raygui_ui_run(nil_t) {
     return 0;
 }
 
-nil_t raygui_ui_destroy(nil_t) {
+nil_t rfui_ui_destroy(nil_t) {
     if (!g_initialized) {
         return;
     }
 
     // Destroy logo texture
-    raygui_logo_destroy();
+    rfui_logo_destroy();
 
     // Destroy widget registry (frees all widgets)
-    raygui_registry_destroy();
+    rfui_registry_destroy();
 
     // Cleanup ImGui and ImPlot
     ImGui_ImplOpenGL3_Shutdown();
@@ -395,14 +403,14 @@ nil_t raygui_ui_destroy(nil_t) {
     g_initialized = false;
 }
 
-b8_t raygui_ui_should_run(nil_t) {
+b8_t rfui_ui_should_run(nil_t) {
     if (!g_initialized || !g_window) {
         return B8_FALSE;
     }
     return glfwWindowShouldClose(g_window) ? B8_FALSE : B8_TRUE;
 }
 
-nil_t raygui_ui_wake(nil_t) {
+nil_t rfui_ui_wake(nil_t) {
     glfwPostEmptyEvent();
 }
 

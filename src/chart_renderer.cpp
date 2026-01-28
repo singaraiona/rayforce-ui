@@ -12,8 +12,8 @@
 #define _Static_assert static_assert
 
 extern "C" {
-#include "../include/raygui/chart_renderer.h"
-#include "../include/raygui/widget.h"
+#include "../include/rfui/chart_renderer.h"
+#include "../include/rfui/widget.h"
 }
 
 // Helper function to check if a type is numeric and plottable
@@ -407,7 +407,7 @@ static void plot_candlestick(obj_p* cols, i64_t* sym_ids, i64_t ncols, i64_t nro
 
 extern "C" {
 
-nil_t raygui_render_chart(raygui_widget_t* widget) {
+nil_t rfui_render_chart(rfui_widget_t* widget) {
     if (widget == nullptr) {
         return;
     }

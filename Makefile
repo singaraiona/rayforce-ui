@@ -1,6 +1,6 @@
 # Makefile
 CC = clang
-CXX = g++
+CXX = clang++
 STD = c17
 
 ifeq ($(OS),)
@@ -74,7 +74,7 @@ GLFW_DEFINES = -D_GLFW_X11
 GLFW_LIBS = -lX11 -lXrandr -lXinerama -lXcursor -lXi /lib/x86_64-linux-gnu/libXxf86vm.so.1
 
 CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$(STD) -g -O0 -march=native -fsigned-char -DDEBUG -m64
-LIBS = -lm -ldl -lpthread -lGL $(GLFW_LIBS)
+LIBS = -lm -ldl -lpthread -lGL /usr/lib/x86_64-linux-gnu/libstdc++.so.6 $(GLFW_LIBS)
 endif
 
 ifeq ($(OS),darwin)
@@ -105,7 +105,9 @@ GLFW_OBJ = $(GLFW_SRC:.c=.o)
 
 # C++ flags for ImGui (includes GLFW headers)
 # Note: C++ files should NOT include rayforce/core directly (shadows system string.h)
-CXXFLAGS = -std=c++11 $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -g -O0
+GCC_VER := $(shell ls /usr/include/c++/ 2>/dev/null | sort -V | tail -1)
+GCC_CXX_INCLUDES := $(if $(GCC_VER),-cxx-isystem /usr/include/c++/$(GCC_VER) -cxx-isystem /usr/include/x86_64-linux-gnu/c++/$(GCC_VER))
+CXXFLAGS = -std=c++11 $(GCC_CXX_INCLUDES) $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -g -O0
 
 # Includes for C files (can include rayforce core)
 INCLUDES_C = -Iinclude -I$(RAYFORCE_DIR)/core $(IMGUI_INCLUDES) $(GLFW_INCLUDES)
@@ -117,16 +119,16 @@ INCLUDES_CXX = -Iinclude $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -Ideps/nanosvg
 SRC_C = src/main.c src/queue.c src/widget.c src/context.c src/rayforce_thread.c
 OBJ_C = $(SRC_C:.c=.o)
 
-# C++ source files (raygui)
+# C++ source files (rayforce-ui)
 SRC_CXX = src/ui.cpp src/widget_registry.cpp src/grid_renderer.cpp src/chart_renderer.cpp src/text_renderer.cpp src/repl_renderer.cpp src/theme.cpp src/logo.cpp
 OBJ_CXX = $(SRC_CXX:.cpp=.o)
 
-TARGET = raygui
+TARGET = rayforce-ui
 
 default: rayforce_lib $(TARGET)
 
 release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$(STD) -O3 -DNDEBUG -march=native -fsigned-char -m64
-release: CXXFLAGS = -std=c++11 $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -O3 -DNDEBUG
+release: CXXFLAGS = -std=c++11 $(GCC_CXX_INCLUDES) $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -O3 -DNDEBUG
 release: GLFW_CFLAGS = -fPIC -Wall -std=c99 -O3 -D_GNU_SOURCE $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
 release: rayforce_lib_release $(TARGET)
 
@@ -138,13 +140,13 @@ rayforce_lib:
 
 # Use C++ linker since we have C++ objects
 $(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ)
-	$(CXX) -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
+	$(CXX) -nostdlib++ -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
 
-# C source compilation for raygui
+# C source compilation for rayforce-ui
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) $(INCLUDES_C) -c $< -o $@
 
-# C++ source compilation for raygui
+# C++ source compilation for rayforce-ui
 src/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES_CXX) -c $< -o $@
 

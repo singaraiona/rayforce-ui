@@ -5,7 +5,7 @@
 #include "implot.h"
 
 extern "C" {
-#include "../include/raygui/theme.h"
+#include "../include/rfui/theme.h"
 }
 
 // Color palette
@@ -27,7 +27,7 @@ extern "C" {
 
 extern "C" {
 
-void raygui_theme_apply(void) {
+void rfui_theme_apply(void) {
     // --- ImGui Style Vars ---
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding    = 4.0f;
@@ -141,7 +141,7 @@ void raygui_theme_apply(void) {
         ImVec4(1.000f, 0.482f, 0.447f, 1.0f),  // #FF7B72
         ImVec4(0.475f, 0.753f, 1.000f, 1.0f),  // #79C0FF
     };
-    ImPlotColormap cmap = ImPlot::AddColormap("raygui", colormap, 8);
+    ImPlotColormap cmap = ImPlot::AddColormap("rayforce-ui", colormap, 8);
     pstyle.Colormap = cmap;
 }
 

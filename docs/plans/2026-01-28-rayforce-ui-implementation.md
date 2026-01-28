@@ -1,4 +1,4 @@
-# raygui Implementation Plan
+# rayforce-ui Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -14,21 +14,21 @@
 
 **Files:**
 - Create: `Makefile`
-- Create: `include/raygui/raygui.h`
+- Create: `include/rfui/rayforce-ui.h`
 - Create: `src/main.c`
 
 **Step 1: Create directory structure**
 
 ```bash
-mkdir -p include/raygui src
+mkdir -p include/rayforce-ui src
 ```
 
 **Step 2: Create main header**
 
 ```c
-// include/raygui/raygui.h
-#ifndef RAYGUI_H
-#define RAYGUI_H
+// include/rfui/rayforce-ui.h
+#ifndef RFUI_H
+#define RFUI_H
 
 #include "../../deps/rayforce/core/rayforce.h"
 #include "../../deps/rayforce/core/runtime.h"
@@ -39,41 +39,41 @@ extern "C" {
 #endif
 
 // Version
-#define RAYGUI_VERSION_MAJOR 0
-#define RAYGUI_VERSION_MINOR 1
+#define RFUI_VERSION_MAJOR 0
+#define RFUI_VERSION_MINOR 1
 
-// Initialize raygui (call from main thread before starting rayforce thread)
-i32_t raygui_init(i32_t argc, str_p argv[]);
+// Initialize rayforce-ui (call from main thread before starting rayforce thread)
+i32_t rfui_init(i32_t argc, str_p argv[]);
 
 // Run main loop (blocks until quit)
-i32_t raygui_run(nil_t);
+i32_t rfui_run(nil_t);
 
 // Cleanup
-nil_t raygui_destroy(nil_t);
+nil_t rfui_destroy(nil_t);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // RAYGUI_H
+#endif // RFUI_H
 ```
 
 **Step 3: Create minimal main.c**
 
 ```c
 // src/main.c
-#include "../include/raygui/raygui.h"
+#include "../include/rfui/rayforce-ui.h"
 #include <stdio.h>
 
 i32_t main(i32_t argc, str_p argv[]) {
-    printf("raygui v%d.%d\n", RAYGUI_VERSION_MAJOR, RAYGUI_VERSION_MINOR);
+    printf("rayforce-ui v%d.%d\n", RFUI_VERSION_MAJOR, RFUI_VERSION_MINOR);
 
-    if (raygui_init(argc, argv) != 0) {
+    if (rfui_init(argc, argv) != 0) {
         return -1;
     }
 
-    i32_t code = raygui_run();
-    raygui_destroy();
+    i32_t code = rfui_run();
+    rfui_destroy();
 
     return code;
 }
@@ -108,7 +108,7 @@ INCLUDES = -Iinclude -I$(RAYFORCE_DIR)/core -Ideps/imgui -Ideps/implot -Ideps/gl
 
 SRC = src/main.c
 OBJ = $(SRC:.c=.o)
-TARGET = raygui
+TARGET = rayforce-ui
 
 default: rayforce_lib $(TARGET)
 
@@ -145,45 +145,45 @@ git commit -m "feat: initial project structure and build system"
 ## Task 2: Thread-Safe Queue
 
 **Files:**
-- Create: `include/raygui/queue.h`
+- Create: `include/rfui/queue.h`
 - Create: `src/queue.c`
 
 **Step 1: Create queue header**
 
 ```c
-// include/raygui/queue.h
-#ifndef RAYGUI_QUEUE_H
-#define RAYGUI_QUEUE_H
+// include/rfui/queue.h
+#ifndef RFUI_QUEUE_H
+#define RFUI_QUEUE_H
 
 #include "../../deps/rayforce/core/rayforce.h"
 #include <pthread.h>
 
-typedef struct raygui_queue_t {
+typedef struct rfui_queue_t {
     raw_p* data;
     i64_t capacity;
     i64_t head;
     i64_t tail;
     pthread_mutex_t mutex;
-} *raygui_queue_p;
+} *rfui_queue_p;
 
-raygui_queue_p raygui_queue_create(i64_t capacity);
-nil_t raygui_queue_destroy(raygui_queue_p q);
-b8_t raygui_queue_push(raygui_queue_p q, raw_p item);
-raw_p raygui_queue_pop(raygui_queue_p q);
-b8_t raygui_queue_empty(raygui_queue_p q);
+rfui_queue_p rfui_queue_create(i64_t capacity);
+nil_t rfui_queue_destroy(rfui_queue_p q);
+b8_t rfui_queue_push(rfui_queue_p q, raw_p item);
+raw_p rfui_queue_pop(rfui_queue_p q);
+b8_t rfui_queue_empty(rfui_queue_p q);
 
-#endif // RAYGUI_QUEUE_H
+#endif // RFUI_QUEUE_H
 ```
 
 **Step 2: Implement queue**
 
 ```c
 // src/queue.c
-#include "../include/raygui/queue.h"
+#include "../include/rfui/queue.h"
 #include <stdlib.h>
 
-raygui_queue_p raygui_queue_create(i64_t capacity) {
-    raygui_queue_p q = malloc(sizeof(struct raygui_queue_t));
+rfui_queue_p rfui_queue_create(i64_t capacity) {
+    rfui_queue_p q = malloc(sizeof(struct rfui_queue_t));
     if (!q) return NULL;
 
     q->data = malloc(sizeof(raw_p) * capacity);
@@ -200,14 +200,14 @@ raygui_queue_p raygui_queue_create(i64_t capacity) {
     return q;
 }
 
-nil_t raygui_queue_destroy(raygui_queue_p q) {
+nil_t rfui_queue_destroy(rfui_queue_p q) {
     if (!q) return;
     pthread_mutex_destroy(&q->mutex);
     free(q->data);
     free(q);
 }
 
-b8_t raygui_queue_push(raygui_queue_p q, raw_p item) {
+b8_t rfui_queue_push(rfui_queue_p q, raw_p item) {
     pthread_mutex_lock(&q->mutex);
 
     i64_t next = (q->tail + 1) % q->capacity;
@@ -223,7 +223,7 @@ b8_t raygui_queue_push(raygui_queue_p q, raw_p item) {
     return B8_TRUE;
 }
 
-raw_p raygui_queue_pop(raygui_queue_p q) {
+raw_p rfui_queue_pop(rfui_queue_p q) {
     pthread_mutex_lock(&q->mutex);
 
     if (q->head == q->tail) {
@@ -238,7 +238,7 @@ raw_p raygui_queue_pop(raygui_queue_p q) {
     return item;
 }
 
-b8_t raygui_queue_empty(raygui_queue_p q) {
+b8_t rfui_queue_empty(rfui_queue_p q) {
     pthread_mutex_lock(&q->mutex);
     b8_t empty = (q->head == q->tail);
     pthread_mutex_unlock(&q->mutex);
@@ -258,7 +258,7 @@ Expected: Compiles successfully
 **Step 5: Commit**
 
 ```bash
-git add include/raygui/queue.h src/queue.c Makefile
+git add include/rfui/queue.h src/queue.c Makefile
 git commit -m "feat: add thread-safe queue for inter-thread communication"
 ```
 
@@ -267,58 +267,58 @@ git commit -m "feat: add thread-safe queue for inter-thread communication"
 ## Task 3: Message Types
 
 **Files:**
-- Create: `include/raygui/message.h`
+- Create: `include/rfui/message.h`
 
 **Step 1: Create message types**
 
 ```c
-// include/raygui/message.h
-#ifndef RAYGUI_MESSAGE_H
-#define RAYGUI_MESSAGE_H
+// include/rfui/message.h
+#ifndef RFUI_MESSAGE_H
+#define RFUI_MESSAGE_H
 
 #include "../../deps/rayforce/core/rayforce.h"
 
 // Forward declaration
-struct raygui_widget_t;
+struct rfui_widget_t;
 
 // UI → Rayforce message types
-typedef enum raygui_ui_msg_type_t {
-    RAYGUI_MSG_EVAL,           // Evaluate expression
-    RAYGUI_MSG_SET_POST_QUERY, // Set widget post_query
-    RAYGUI_MSG_DROP,           // Drop obj_p after render
-    RAYGUI_MSG_QUIT            // Shutdown
-} raygui_ui_msg_type_t;
+typedef enum rfui_ui_msg_type_t {
+    RFUI_MSG_EVAL,           // Evaluate expression
+    RFUI_MSG_SET_POST_QUERY, // Set widget post_query
+    RFUI_MSG_DROP,           // Drop obj_p after render
+    RFUI_MSG_QUIT            // Shutdown
+} rfui_ui_msg_type_t;
 
 // Rayforce → UI message types
-typedef enum raygui_ray_msg_type_t {
-    RAYGUI_MSG_WIDGET_CREATED, // New widget panel
-    RAYGUI_MSG_DRAW,           // Widget data update
-    RAYGUI_MSG_RESULT          // REPL result
-} raygui_ray_msg_type_t;
+typedef enum rfui_ray_msg_type_t {
+    RFUI_MSG_WIDGET_CREATED, // New widget panel
+    RFUI_MSG_DRAW,           // Widget data update
+    RFUI_MSG_RESULT          // REPL result
+} rfui_ray_msg_type_t;
 
 // UI → Rayforce message
-typedef struct raygui_ui_msg_t {
-    raygui_ui_msg_type_t type;
+typedef struct rfui_ui_msg_t {
+    rfui_ui_msg_type_t type;
     char* expr;                      // Expression string (owned, must free)
     obj_p obj;                       // Object to drop
-    struct raygui_widget_t* widget;  // Target widget
-} raygui_ui_msg_t;
+    struct rfui_widget_t* widget;  // Target widget
+} rfui_ui_msg_t;
 
 // Rayforce → UI message
-typedef struct raygui_ray_msg_t {
-    raygui_ray_msg_type_t type;
-    struct raygui_widget_t* widget;  // Target widget
+typedef struct rfui_ray_msg_t {
+    rfui_ray_msg_type_t type;
+    struct rfui_widget_t* widget;  // Target widget
     obj_p data;                      // Data for rendering
     char* text;                      // Result text (owned, must free)
-} raygui_ray_msg_t;
+} rfui_ray_msg_t;
 
-#endif // RAYGUI_MESSAGE_H
+#endif // RFUI_MESSAGE_H
 ```
 
 **Step 2: Commit**
 
 ```bash
-git add include/raygui/message.h
+git add include/rfui/message.h
 git commit -m "feat: add message types for inter-thread communication"
 ```
 
@@ -327,27 +327,27 @@ git commit -m "feat: add message types for inter-thread communication"
 ## Task 4: Widget Types
 
 **Files:**
-- Create: `include/raygui/widget.h`
+- Create: `include/rfui/widget.h`
 - Create: `src/widget.c`
 
 **Step 1: Create widget header**
 
 ```c
-// include/raygui/widget.h
-#ifndef RAYGUI_WIDGET_H
-#define RAYGUI_WIDGET_H
+// include/rfui/widget.h
+#ifndef RFUI_WIDGET_H
+#define RFUI_WIDGET_H
 
 #include "../../deps/rayforce/core/rayforce.h"
 
-typedef enum raygui_widget_type_t {
-    RAYGUI_WIDGET_GRID,
-    RAYGUI_WIDGET_CHART,
-    RAYGUI_WIDGET_TEXT,
-    RAYGUI_WIDGET_REPL
-} raygui_widget_type_t;
+typedef enum rfui_widget_type_t {
+    RFUI_WIDGET_GRID,
+    RFUI_WIDGET_CHART,
+    RFUI_WIDGET_TEXT,
+    RFUI_WIDGET_REPL
+} rfui_widget_type_t;
 
-typedef struct raygui_widget_t {
-    raygui_widget_type_t type;
+typedef struct rfui_widget_t {
+    rfui_widget_type_t type;
     char* name;
     obj_p data;           // Base data from draw()
     obj_p post_query;     // Expression applied before render
@@ -358,44 +358,44 @@ typedef struct raygui_widget_t {
     u32_t dock_id;
     raw_p ui_state;       // Type-specific UI state
     obj_p render_data;    // Current data for rendering
-} raygui_widget_t;
+} rfui_widget_t;
 
 // Create widget struct (called from Rayforce thread)
-raygui_widget_t* raygui_widget_create(raygui_widget_type_t type, const char* name);
+rfui_widget_t* rfui_widget_create(rfui_widget_type_t type, const char* name);
 
 // Destroy widget struct
-nil_t raygui_widget_destroy(raygui_widget_t* w);
+nil_t rfui_widget_destroy(rfui_widget_t* w);
 
 // Format widget for display
-char* raygui_widget_format(raygui_widget_t* w);
+char* rfui_widget_format(rfui_widget_t* w);
 
 // Get type name
-const char* raygui_widget_type_name(raygui_widget_type_t type);
+const char* rfui_widget_type_name(rfui_widget_type_t type);
 
-#endif // RAYGUI_WIDGET_H
+#endif // RFUI_WIDGET_H
 ```
 
 **Step 2: Implement widget**
 
 ```c
 // src/widget.c
-#include "../include/raygui/widget.h"
+#include "../include/rfui/widget.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-const char* raygui_widget_type_name(raygui_widget_type_t type) {
+const char* rfui_widget_type_name(rfui_widget_type_t type) {
     switch (type) {
-        case RAYGUI_WIDGET_GRID:  return "grid";
-        case RAYGUI_WIDGET_CHART: return "chart";
-        case RAYGUI_WIDGET_TEXT:  return "text";
-        case RAYGUI_WIDGET_REPL:  return "repl";
+        case RFUI_WIDGET_GRID:  return "grid";
+        case RFUI_WIDGET_CHART: return "chart";
+        case RFUI_WIDGET_TEXT:  return "text";
+        case RFUI_WIDGET_REPL:  return "repl";
         default: return "unknown";
     }
 }
 
-raygui_widget_t* raygui_widget_create(raygui_widget_type_t type, const char* name) {
-    raygui_widget_t* w = malloc(sizeof(raygui_widget_t));
+rfui_widget_t* rfui_widget_create(rfui_widget_type_t type, const char* name) {
+    rfui_widget_t* w = malloc(sizeof(rfui_widget_t));
     if (!w) return NULL;
 
     w->type = type;
@@ -411,7 +411,7 @@ raygui_widget_t* raygui_widget_create(raygui_widget_type_t type, const char* nam
     return w;
 }
 
-nil_t raygui_widget_destroy(raygui_widget_t* w) {
+nil_t rfui_widget_destroy(rfui_widget_t* w) {
     if (!w) return;
 
     free(w->name);
@@ -422,10 +422,10 @@ nil_t raygui_widget_destroy(raygui_widget_t* w) {
     free(w);
 }
 
-char* raygui_widget_format(raygui_widget_t* w) {
+char* rfui_widget_format(rfui_widget_t* w) {
     char* buf = malloc(256);
     snprintf(buf, 256, "widget<%s:\"%s\">",
-             raygui_widget_type_name(w->type), w->name);
+             rfui_widget_type_name(w->type), w->name);
     return buf;
 }
 ```
@@ -442,7 +442,7 @@ Expected: Compiles successfully
 **Step 5: Commit**
 
 ```bash
-git add include/raygui/widget.h src/widget.c Makefile
+git add include/rfui/widget.h src/widget.c Makefile
 git commit -m "feat: add widget type and basic operations"
 ```
 
@@ -451,16 +451,16 @@ git commit -m "feat: add widget type and basic operations"
 ## Task 5: Context & Threading Setup
 
 **Files:**
-- Create: `include/raygui/context.h`
+- Create: `include/rfui/context.h`
 - Create: `src/context.c`
 - Modify: `src/main.c`
 
 **Step 1: Create context header**
 
 ```c
-// include/raygui/context.h
-#ifndef RAYGUI_CONTEXT_H
-#define RAYGUI_CONTEXT_H
+// include/rfui/context.h
+#ifndef RFUI_CONTEXT_H
+#define RFUI_CONTEXT_H
 
 #include "../../deps/rayforce/core/rayforce.h"
 #include "../../deps/rayforce/core/runtime.h"
@@ -468,16 +468,16 @@ git commit -m "feat: add widget type and basic operations"
 #include "queue.h"
 #include <pthread.h>
 
-#define RAYGUI_QUEUE_SIZE 1024
+#define RFUI_QUEUE_SIZE 1024
 
-typedef struct raygui_ctx_t {
+typedef struct rfui_ctx_t {
     // Command line args
     i32_t argc;
     str_p* argv;
 
     // Queues
-    raygui_queue_p ui_to_ray;  // UI → Rayforce
-    raygui_queue_p ray_to_ui;  // Rayforce → UI
+    rfui_queue_p ui_to_ray;  // UI → Rayforce
+    rfui_queue_p ray_to_ui;  // Rayforce → UI
 
     // Rayforce thread
     pthread_t ray_thread;
@@ -488,47 +488,47 @@ typedef struct raygui_ctx_t {
     pthread_cond_t ready_cond;
     b8_t ray_ready;
     b8_t should_quit;
-} raygui_ctx_t;
+} rfui_ctx_t;
 
 // Global context
-extern raygui_ctx_t* g_ctx;
+extern rfui_ctx_t* g_ctx;
 
 // Initialize context
-raygui_ctx_t* raygui_ctx_create(i32_t argc, str_p argv[]);
+rfui_ctx_t* rfui_ctx_create(i32_t argc, str_p argv[]);
 
 // Destroy context
-nil_t raygui_ctx_destroy(raygui_ctx_t* ctx);
+nil_t rfui_ctx_destroy(rfui_ctx_t* ctx);
 
 // Wait for rayforce thread to be ready
-nil_t raygui_ctx_wait_ready(raygui_ctx_t* ctx);
+nil_t rfui_ctx_wait_ready(rfui_ctx_t* ctx);
 
 // Signal rayforce is ready
-nil_t raygui_ctx_signal_ready(raygui_ctx_t* ctx);
+nil_t rfui_ctx_signal_ready(rfui_ctx_t* ctx);
 
-#endif // RAYGUI_CONTEXT_H
+#endif // RFUI_CONTEXT_H
 ```
 
 **Step 2: Implement context**
 
 ```c
 // src/context.c
-#include "../include/raygui/context.h"
+#include "../include/rfui/context.h"
 #include <stdlib.h>
 
-raygui_ctx_t* g_ctx = NULL;
+rfui_ctx_t* g_ctx = NULL;
 
-raygui_ctx_t* raygui_ctx_create(i32_t argc, str_p argv[]) {
-    raygui_ctx_t* ctx = malloc(sizeof(raygui_ctx_t));
+rfui_ctx_t* rfui_ctx_create(i32_t argc, str_p argv[]) {
+    rfui_ctx_t* ctx = malloc(sizeof(rfui_ctx_t));
     if (!ctx) return NULL;
 
     ctx->argc = argc;
     ctx->argv = argv;
 
-    ctx->ui_to_ray = raygui_queue_create(RAYGUI_QUEUE_SIZE);
-    ctx->ray_to_ui = raygui_queue_create(RAYGUI_QUEUE_SIZE);
+    ctx->ui_to_ray = rfui_queue_create(RFUI_QUEUE_SIZE);
+    ctx->ray_to_ui = rfui_queue_create(RFUI_QUEUE_SIZE);
 
     if (!ctx->ui_to_ray || !ctx->ray_to_ui) {
-        raygui_ctx_destroy(ctx);
+        rfui_ctx_destroy(ctx);
         return NULL;
     }
 
@@ -543,11 +543,11 @@ raygui_ctx_t* raygui_ctx_create(i32_t argc, str_p argv[]) {
     return ctx;
 }
 
-nil_t raygui_ctx_destroy(raygui_ctx_t* ctx) {
+nil_t rfui_ctx_destroy(rfui_ctx_t* ctx) {
     if (!ctx) return;
 
-    if (ctx->ui_to_ray) raygui_queue_destroy(ctx->ui_to_ray);
-    if (ctx->ray_to_ui) raygui_queue_destroy(ctx->ray_to_ui);
+    if (ctx->ui_to_ray) rfui_queue_destroy(ctx->ui_to_ray);
+    if (ctx->ray_to_ui) rfui_queue_destroy(ctx->ray_to_ui);
 
     pthread_mutex_destroy(&ctx->ready_mutex);
     pthread_cond_destroy(&ctx->ready_cond);
@@ -556,7 +556,7 @@ nil_t raygui_ctx_destroy(raygui_ctx_t* ctx) {
     g_ctx = NULL;
 }
 
-nil_t raygui_ctx_wait_ready(raygui_ctx_t* ctx) {
+nil_t rfui_ctx_wait_ready(rfui_ctx_t* ctx) {
     pthread_mutex_lock(&ctx->ready_mutex);
     while (!ctx->ray_ready) {
         pthread_cond_wait(&ctx->ready_cond, &ctx->ready_mutex);
@@ -564,7 +564,7 @@ nil_t raygui_ctx_wait_ready(raygui_ctx_t* ctx) {
     pthread_mutex_unlock(&ctx->ready_mutex);
 }
 
-nil_t raygui_ctx_signal_ready(raygui_ctx_t* ctx) {
+nil_t rfui_ctx_signal_ready(rfui_ctx_t* ctx) {
     pthread_mutex_lock(&ctx->ready_mutex);
     ctx->ray_ready = B8_TRUE;
     pthread_cond_signal(&ctx->ready_cond);
@@ -584,7 +584,7 @@ Expected: Compiles successfully
 **Step 5: Commit**
 
 ```bash
-git add include/raygui/context.h src/context.c Makefile
+git add include/rfui/context.h src/context.c Makefile
 git commit -m "feat: add context and threading synchronization"
 ```
 
@@ -594,37 +594,37 @@ git commit -m "feat: add context and threading synchronization"
 
 **Files:**
 - Create: `src/rayforce_thread.c`
-- Create: `include/raygui/rayforce_thread.h`
+- Create: `include/rfui/rayforce_thread.h`
 
 **Step 1: Create rayforce thread header**
 
 ```c
-// include/raygui/rayforce_thread.h
-#ifndef RAYGUI_RAYFORCE_THREAD_H
-#define RAYGUI_RAYFORCE_THREAD_H
+// include/rfui/rayforce_thread.h
+#ifndef RFUI_RAYFORCE_THREAD_H
+#define RFUI_RAYFORCE_THREAD_H
 
 #include "context.h"
 
 // Start rayforce thread
-i32_t raygui_rayforce_start(raygui_ctx_t* ctx);
+i32_t rfui_rayforce_start(rfui_ctx_t* ctx);
 
 // Stop rayforce thread (sends quit message)
-nil_t raygui_rayforce_stop(raygui_ctx_t* ctx);
+nil_t rfui_rayforce_stop(rfui_ctx_t* ctx);
 
-// Register raygui types and functions with rayforce
-nil_t raygui_register_types(nil_t);
-nil_t raygui_register_fns(nil_t);
+// Register rayforce-ui types and functions with rayforce
+nil_t rfui_register_types(nil_t);
+nil_t rfui_register_fns(nil_t);
 
-#endif // RAYGUI_RAYFORCE_THREAD_H
+#endif // RFUI_RAYFORCE_THREAD_H
 ```
 
 **Step 2: Implement rayforce thread**
 
 ```c
 // src/rayforce_thread.c
-#include "../include/raygui/rayforce_thread.h"
-#include "../include/raygui/message.h"
-#include "../include/raygui/widget.h"
+#include "../include/rfui/rayforce_thread.h"
+#include "../include/rfui/message.h"
+#include "../include/rfui/widget.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -635,26 +635,26 @@ static raw_p rayforce_thread_main(raw_p arg);
 
 // External type drop function for widget
 static nil_t widget_ext_drop(raw_p ptr) {
-    raygui_widget_destroy((raygui_widget_t*)ptr);
+    rfui_widget_destroy((rfui_widget_t*)ptr);
 }
 
-nil_t raygui_register_types(nil_t) {
+nil_t rfui_register_types(nil_t) {
     // Widget external type is created via external() function
     // The drop function is passed when creating the external object
 }
 
-nil_t raygui_register_fns(nil_t) {
+nil_t rfui_register_fns(nil_t) {
     // TODO: Register widget and draw functions
     // This requires modifying rayforce's env to add custom functions
 }
 
 static nil_t on_ui_message(raw_p data) {
-    raygui_ctx_t* ctx = (raygui_ctx_t*)data;
-    raygui_ui_msg_t* msg;
+    rfui_ctx_t* ctx = (rfui_ctx_t*)data;
+    rfui_ui_msg_t* msg;
 
-    while ((msg = raygui_queue_pop(ctx->ui_to_ray)) != NULL) {
+    while ((msg = rfui_queue_pop(ctx->ui_to_ray)) != NULL) {
         switch (msg->type) {
-            case RAYGUI_MSG_EVAL: {
+            case RFUI_MSG_EVAL: {
                 printf("[ray] Eval: %s\n", msg->expr);
                 obj_p result = eval_str(msg->expr);
 
@@ -662,8 +662,8 @@ static nil_t on_ui_message(raw_p data) {
                 obj_p fmt = obj_fmt(result, B8_TRUE);
 
                 // Send result back to UI
-                raygui_ray_msg_t* reply = malloc(sizeof(raygui_ray_msg_t));
-                reply->type = RAYGUI_MSG_RESULT;
+                rfui_ray_msg_t* reply = malloc(sizeof(rfui_ray_msg_t));
+                reply->type = RFUI_MSG_RESULT;
                 reply->widget = msg->widget;
                 reply->data = NULL;
                 reply->text = strdup(AS_C8(fmt));
@@ -671,18 +671,18 @@ static nil_t on_ui_message(raw_p data) {
                 drop_obj(fmt);
                 drop_obj(result);
 
-                raygui_queue_push(ctx->ray_to_ui, reply);
+                rfui_queue_push(ctx->ray_to_ui, reply);
                 // TODO: glfwPostEmptyEvent() to wake UI
 
                 free(msg->expr);
                 break;
             }
 
-            case RAYGUI_MSG_DROP:
+            case RFUI_MSG_DROP:
                 if (msg->obj) drop_obj(msg->obj);
                 break;
 
-            case RAYGUI_MSG_QUIT:
+            case RFUI_MSG_QUIT:
                 ctx->should_quit = B8_TRUE;
                 poll_exit(runtime_get()->poll, 0);
                 break;
@@ -695,25 +695,25 @@ static nil_t on_ui_message(raw_p data) {
 }
 
 static raw_p rayforce_thread_main(raw_p arg) {
-    raygui_ctx_t* ctx = (raygui_ctx_t*)arg;
+    rfui_ctx_t* ctx = (rfui_ctx_t*)arg;
 
     // Create runtime
     runtime_p runtime = runtime_create(ctx->argc, ctx->argv);
     if (!runtime) {
         fprintf(stderr, "Failed to create rayforce runtime\n");
-        raygui_ctx_signal_ready(ctx);
+        rfui_ctx_signal_ready(ctx);
         return NULL;
     }
 
     // Register types and functions
-    raygui_register_types();
-    raygui_register_fns();
+    rfui_register_types();
+    rfui_register_fns();
 
     // Create waker for UI messages
     ctx->waker = poll_waker_create(runtime->poll, on_ui_message, ctx);
 
     // Signal ready
-    raygui_ctx_signal_ready(ctx);
+    rfui_ctx_signal_ready(ctx);
     printf("[ray] Rayforce thread ready\n");
 
     // Run poll loop
@@ -727,19 +727,19 @@ static raw_p rayforce_thread_main(raw_p arg) {
     return NULL;
 }
 
-i32_t raygui_rayforce_start(raygui_ctx_t* ctx) {
+i32_t rfui_rayforce_start(rfui_ctx_t* ctx) {
     return pthread_create(&ctx->ray_thread, NULL, rayforce_thread_main, ctx);
 }
 
-nil_t raygui_rayforce_stop(raygui_ctx_t* ctx) {
+nil_t rfui_rayforce_stop(rfui_ctx_t* ctx) {
     // Send quit message
-    raygui_ui_msg_t* msg = malloc(sizeof(raygui_ui_msg_t));
-    msg->type = RAYGUI_MSG_QUIT;
+    rfui_ui_msg_t* msg = malloc(sizeof(rfui_ui_msg_t));
+    msg->type = RFUI_MSG_QUIT;
     msg->expr = NULL;
     msg->obj = NULL;
     msg->widget = NULL;
 
-    raygui_queue_push(ctx->ui_to_ray, msg);
+    rfui_queue_push(ctx->ui_to_ray, msg);
     if (ctx->waker) poll_waker_wake(ctx->waker);
 
     // Wait for thread
@@ -759,7 +759,7 @@ Expected: Compiles successfully
 **Step 5: Commit**
 
 ```bash
-git add include/raygui/rayforce_thread.h src/rayforce_thread.c Makefile
+git add include/rfui/rayforce_thread.h src/rayforce_thread.c Makefile
 git commit -m "feat: add rayforce thread with waker integration"
 ```
 
@@ -769,14 +769,14 @@ git commit -m "feat: add rayforce thread with waker integration"
 
 **Files:**
 - Modify: `src/main.c`
-- Modify: `include/raygui/raygui.h`
+- Modify: `include/rfui/rayforce-ui.h`
 
-**Step 1: Update raygui.h**
+**Step 1: Update rayforce-ui.h**
 
 ```c
-// include/raygui/raygui.h
-#ifndef RAYGUI_H
-#define RAYGUI_H
+// include/rfui/rayforce-ui.h
+#ifndef RFUI_H
+#define RFUI_H
 
 #include "../../deps/rayforce/core/rayforce.h"
 #include "context.h"
@@ -789,83 +789,83 @@ git commit -m "feat: add rayforce thread with waker integration"
 extern "C" {
 #endif
 
-#define RAYGUI_VERSION_MAJOR 0
-#define RAYGUI_VERSION_MINOR 1
+#define RFUI_VERSION_MAJOR 0
+#define RFUI_VERSION_MINOR 1
 
-i32_t raygui_init(i32_t argc, str_p argv[]);
-i32_t raygui_run(nil_t);
-nil_t raygui_destroy(nil_t);
+i32_t rfui_init(i32_t argc, str_p argv[]);
+i32_t rfui_run(nil_t);
+nil_t rfui_destroy(nil_t);
 
 // Send expression to rayforce for evaluation
-nil_t raygui_eval(const char* expr);
+nil_t rfui_eval(const char* expr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // RAYGUI_H
+#endif // RFUI_H
 ```
 
 **Step 2: Update main.c**
 
 ```c
 // src/main.c
-#include "../include/raygui/raygui.h"
+#include "../include/rfui/rayforce-ui.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-static raygui_ctx_t* ctx = NULL;
+static rfui_ctx_t* ctx = NULL;
 
-i32_t raygui_init(i32_t argc, str_p argv[]) {
-    printf("raygui v%d.%d\n", RAYGUI_VERSION_MAJOR, RAYGUI_VERSION_MINOR);
+i32_t rfui_init(i32_t argc, str_p argv[]) {
+    printf("rayforce-ui v%d.%d\n", RFUI_VERSION_MAJOR, RFUI_VERSION_MINOR);
 
     // Create context
-    ctx = raygui_ctx_create(argc, argv);
+    ctx = rfui_ctx_create(argc, argv);
     if (!ctx) {
         fprintf(stderr, "Failed to create context\n");
         return -1;
     }
 
     // Start rayforce thread
-    if (raygui_rayforce_start(ctx) != 0) {
+    if (rfui_rayforce_start(ctx) != 0) {
         fprintf(stderr, "Failed to start rayforce thread\n");
-        raygui_ctx_destroy(ctx);
+        rfui_ctx_destroy(ctx);
         return -1;
     }
 
     // Wait for rayforce to be ready
-    raygui_ctx_wait_ready(ctx);
+    rfui_ctx_wait_ready(ctx);
 
     return 0;
 }
 
-nil_t raygui_eval(const char* expr) {
+nil_t rfui_eval(const char* expr) {
     if (!ctx) return;
 
-    raygui_ui_msg_t* msg = malloc(sizeof(raygui_ui_msg_t));
-    msg->type = RAYGUI_MSG_EVAL;
+    rfui_ui_msg_t* msg = malloc(sizeof(rfui_ui_msg_t));
+    msg->type = RFUI_MSG_EVAL;
     msg->expr = strdup(expr);
     msg->obj = NULL;
     msg->widget = NULL;
 
-    raygui_queue_push(ctx->ui_to_ray, msg);
+    rfui_queue_push(ctx->ui_to_ray, msg);
     if (ctx->waker) poll_waker_wake(ctx->waker);
 }
 
-i32_t raygui_run(nil_t) {
+i32_t rfui_run(nil_t) {
     // TODO: GLFW/ImGui main loop
     // For now, simple test loop
 
     printf("[ui] Sending test expression...\n");
-    raygui_eval("(+ 1 2 3)");
+    rfui_eval("(+ 1 2 3)");
 
     // Process responses
     sleep(1);
 
-    raygui_ray_msg_t* reply;
-    while ((reply = raygui_queue_pop(ctx->ray_to_ui)) != NULL) {
-        if (reply->type == RAYGUI_MSG_RESULT) {
+    rfui_ray_msg_t* reply;
+    while ((reply = rfui_queue_pop(ctx->ray_to_ui)) != NULL) {
+        if (reply->type == RFUI_MSG_RESULT) {
             printf("[ui] Result: %s\n", reply->text);
             free(reply->text);
         }
@@ -875,21 +875,21 @@ i32_t raygui_run(nil_t) {
     return 0;
 }
 
-nil_t raygui_destroy(nil_t) {
+nil_t rfui_destroy(nil_t) {
     if (!ctx) return;
 
-    raygui_rayforce_stop(ctx);
-    raygui_ctx_destroy(ctx);
+    rfui_rayforce_stop(ctx);
+    rfui_ctx_destroy(ctx);
     ctx = NULL;
 }
 
 i32_t main(i32_t argc, str_p argv[]) {
-    if (raygui_init(argc, argv) != 0) {
+    if (rfui_init(argc, argv) != 0) {
         return -1;
     }
 
-    i32_t code = raygui_run();
-    raygui_destroy();
+    i32_t code = rfui_run();
+    rfui_destroy();
 
     return code;
 }
@@ -897,10 +897,10 @@ i32_t main(i32_t argc, str_p argv[]) {
 
 **Step 3: Build and test**
 
-Run: `make clean && make && ./raygui`
+Run: `make clean && make && ./rayforce-ui`
 Expected:
 ```
-raygui v0.1
+rayforce-ui v0.1
 [ray] Rayforce thread ready
 [ui] Sending test expression...
 [ray] Eval: (+ 1 2 3)
@@ -911,7 +911,7 @@ raygui v0.1
 **Step 4: Commit**
 
 ```bash
-git add include/raygui/raygui.h src/main.c
+git add include/rfui/rayforce-ui.h src/main.c
 git commit -m "feat: integrate rayforce thread with main, test eval"
 ```
 
@@ -1038,7 +1038,7 @@ After completing all tasks:
 
 1. **Run the application:**
    ```bash
-   ./raygui
+   ./rayforce-ui
    ```
 
 2. **Test REPL:**

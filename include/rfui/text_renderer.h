@@ -1,6 +1,6 @@
-// include/raygui/text_renderer.h
-#ifndef RAYGUI_TEXT_RENDERER_H
-#define RAYGUI_TEXT_RENDERER_H
+// include/rfui/text_renderer.h
+#ifndef RFUI_TEXT_RENDERER_H
+#define RFUI_TEXT_RENDERER_H
 
 #include "widget.h"
 
@@ -10,10 +10,10 @@ extern "C" {
 
 // Render a text widget
 // widget->render_data can be any Rayforce object - displays formatted string representation
-nil_t raygui_render_text(raygui_widget_t* widget);
+nil_t rfui_render_text(rfui_widget_t* widget);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // RAYGUI_TEXT_RENDERER_H
+#endif // RFUI_TEXT_RENDERER_H

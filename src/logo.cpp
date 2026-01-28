@@ -26,7 +26,7 @@
 #include "../deps/nanosvg/nanosvgrast.h"
 
 extern "C" {
-#include "../include/raygui/logo.h"
+#include "../include/rfui/logo.h"
 }
 
 static GLuint g_logo_texture = 0;
@@ -35,7 +35,7 @@ static int g_logo_h = 0;
 
 extern "C" {
 
-int raygui_logo_init(const char* svg_path) {
+int rfui_logo_init(const char* svg_path) {
     NSVGimage* image = nsvgParseFromFile(svg_path, "px", 96.0f);
     if (!image) {
         fprintf(stderr, "logo: failed to parse %s\n", svg_path);
@@ -79,7 +79,7 @@ int raygui_logo_init(const char* svg_path) {
     return 0;
 }
 
-void raygui_logo_render(void) {
+void rfui_logo_render(void) {
     if (g_logo_texture == 0) return;
 
     ImDrawList* bg = ImGui::GetBackgroundDrawList();
@@ -100,14 +100,23 @@ void raygui_logo_render(void) {
                  ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 30));
 }
 
-void raygui_logo_destroy(void) {
+void rfui_logo_destroy(void) {
     if (g_logo_texture) {
         glDeleteTextures(1, &g_logo_texture);
         g_logo_texture = 0;
     }
 }
 
-int raygui_icon_init(const char* svg_path, void* glfw_window) {
+unsigned int rfui_logo_texture(void) {
+    return g_logo_texture;
+}
+
+void rfui_logo_size(int* w, int* h) {
+    if (w) *w = g_logo_w;
+    if (h) *h = g_logo_h;
+}
+
+int rfui_icon_init(const char* svg_path, void* glfw_window) {
     NSVGimage* image = nsvgParseFromFile(svg_path, "px", 96.0f);
     if (!image) {
         fprintf(stderr, "icon: failed to parse %s\n", svg_path);

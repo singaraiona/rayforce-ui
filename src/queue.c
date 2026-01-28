@@ -1,9 +1,9 @@
 // src/queue.c
-#include "../include/raygui/queue.h"
+#include "../include/rfui/queue.h"
 #include <stdlib.h>
 
-raygui_queue_p raygui_queue_create(i64_t capacity) {
-    raygui_queue_p q = malloc(sizeof(struct raygui_queue_t));
+rfui_queue_p rfui_queue_create(i64_t capacity) {
+    rfui_queue_p q = malloc(sizeof(struct rfui_queue_t));
     if (!q) return NULL;
 
     q->data = malloc(sizeof(raw_p) * capacity);
@@ -20,14 +20,14 @@ raygui_queue_p raygui_queue_create(i64_t capacity) {
     return q;
 }
 
-nil_t raygui_queue_destroy(raygui_queue_p q) {
+nil_t rfui_queue_destroy(rfui_queue_p q) {
     if (!q) return;
     pthread_mutex_destroy(&q->mutex);
     free(q->data);
     free(q);
 }
 
-b8_t raygui_queue_push(raygui_queue_p q, raw_p item) {
+b8_t rfui_queue_push(rfui_queue_p q, raw_p item) {
     pthread_mutex_lock(&q->mutex);
 
     i64_t next = (q->tail + 1) % q->capacity;
@@ -43,7 +43,7 @@ b8_t raygui_queue_push(raygui_queue_p q, raw_p item) {
     return B8_TRUE;
 }
 
-raw_p raygui_queue_pop(raygui_queue_p q) {
+raw_p rfui_queue_pop(rfui_queue_p q) {
     pthread_mutex_lock(&q->mutex);
 
     if (q->head == q->tail) {
@@ -58,7 +58,7 @@ raw_p raygui_queue_pop(raygui_queue_p q) {
     return item;
 }
 
-b8_t raygui_queue_empty(raygui_queue_p q) {
+b8_t rfui_queue_empty(rfui_queue_p q) {
     pthread_mutex_lock(&q->mutex);
     b8_t empty = (q->head == q->tail);
     pthread_mutex_unlock(&q->mutex);

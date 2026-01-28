@@ -1,0 +1,35 @@
+// include/rfui/widget_registry.h
+#ifndef RFUI_WIDGET_REGISTRY_H
+#define RFUI_WIDGET_REGISTRY_H
+
+#include "widget.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Initialize widget registry
+nil_t rfui_registry_init(nil_t);
+
+// Destroy widget registry
+nil_t rfui_registry_destroy(nil_t);
+
+// Add widget to registry (takes ownership of widget pointer)
+nil_t rfui_registry_add(rfui_widget_t* widget);
+
+// Render all widgets - called from UI main loop
+nil_t rfui_registry_render(nil_t);
+
+// Update widget data - called when MSG_DRAW received
+// Returns old render_data that should be queued for drop
+obj_p rfui_registry_update_data(rfui_widget_t* widget, obj_p new_data);
+
+// Find first widget of specified type
+// Returns NULL if not found
+rfui_widget_t* rfui_registry_find_by_type(rfui_widget_type_t type);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // RFUI_WIDGET_REGISTRY_H

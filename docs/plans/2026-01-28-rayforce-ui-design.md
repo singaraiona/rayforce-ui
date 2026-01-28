@@ -1,11 +1,11 @@
-# raygui Design Document
+# rayforce-ui Design Document
 
 **Date:** 2026-01-28
 **Status:** Draft
 
 ## Overview
 
-raygui is a GUI framework for RayforceDB that extends the Rayforce runtime with native widget functions. Widgets are first-class Rayforce objects defined and controlled via Rayfall expressions. Uses Dear ImGui for rendering.
+rayforce-ui is a GUI framework for RayforceDB that extends the Rayforce runtime with native widget functions. Widgets are first-class Rayforce objects defined and controlled via Rayfall expressions. Uses Dear ImGui for rendering.
 
 ### Goals
 
@@ -106,8 +106,8 @@ UI sends expression string, Rayforce parses and allocates obj_p.
 ### Widget Structure
 
 ```c
-typedef struct raygui_widget_t {
-    raygui_widget_type_t type;  // GRID, CHART, TEXT, REPL
+typedef struct rfui_widget_t {
+    rfui_widget_type_t type;  // GRID, CHART, TEXT, REPL
     char* name;                  // Panel title
     obj_p data;                  // Base data from draw()
     obj_p post_query;            // Expression applied before render
@@ -118,7 +118,7 @@ typedef struct raygui_widget_t {
     ImGuiID dock_id;
     void* ui_state;              // Type-specific UI state
     obj_p render_data;           // Current data for rendering
-} raygui_widget_t;
+} rfui_widget_t;
 ```
 
 ## V1 Widget Types
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     ray_to_ui_queue = queue_create(QUEUE_SIZE);
 
     // 2. Start Rayforce thread
-    raygui_ctx_t ctx = { .argc = argc, .argv = argv };
+    rfui_ctx_t ctx = { .argc = argc, .argv = argv };
     pthread_create(&ray_thread, NULL, rayforce_thread, &ctx);
 
     // 3. Wait for runtime ready
@@ -151,25 +151,25 @@ int main(int argc, char* argv[]) {
     imgui_init(window);
 
     // 5. Create REPL widget
-    raygui_eval("(set *repl* (widget {type: 'repl name: \"REPL\"}))");
+    rfui_eval("(set *repl* (widget {type: 'repl name: \"REPL\"}))");
 
     // 6. Main loop
-    raygui_main_loop(window);
+    rfui_main_loop(window);
 
     // 7. Cleanup
-    raygui_quit();
+    rfui_quit();
     pthread_join(ray_thread, NULL);
 }
 
 void* rayforce_thread(void* arg) {
-    raygui_ctx_t* ctx = arg;
+    rfui_ctx_t* ctx = arg;
 
     // 1. Create runtime
     runtime_p runtime = runtime_create(ctx->argc, ctx->argv);
 
-    // 2. Register raygui extensions
-    raygui_register_types();   // widget ext type
-    raygui_register_fns();     // widget, draw functions
+    // 2. Register rayforce-ui extensions
+    rfui_register_types();   // widget ext type
+    rfui_register_fns();     // widget, draw functions
 
     // 3. Create waker for UI messages
     ctx->waker = poll_waker_create(runtime->poll, on_ui_message, ctx);
@@ -189,7 +189,7 @@ void* rayforce_thread(void* arg) {
 ## UI Main Loop
 
 ```c
-void raygui_main_loop(GLFWwindow* window) {
+void rfui_main_loop(GLFWwindow* window) {
     while (!glfwWindowShouldClose(window)) {
         // Event handling with idle sleep
         if (has_pending_work()) {
@@ -221,7 +221,7 @@ bool has_pending_work() {
 ## Grid Renderer (Zero-Copy)
 
 ```c
-void render_grid(raygui_widget_t* w) {
+void render_grid(rfui_widget_t* w) {
     if (!w->render_data) return;
 
     obj_p table = w->render_data;
@@ -289,12 +289,12 @@ UI Thread (next frame):
 ### Type Registration
 
 ```c
-void raygui_register_types() {
+void rfui_register_types() {
     ray_register_ext("widget", widget_drop, widget_format);
 }
 
 char* widget_format(obj_p w) {
-    raygui_widget_t* widget = AS_EXT(w);
+    rfui_widget_t* widget = AS_EXT(w);
     return format_str("widget<%s:\"%s\">",
         widget_type_name(widget->type),
         widget->name);
@@ -304,7 +304,7 @@ char* widget_format(obj_p w) {
 ### Function Registration
 
 ```c
-void raygui_register_fns() {
+void rfui_register_fns() {
     ray_register_fn("widget", 1, fn_widget);
     ray_register_fn("draw", 2, fn_draw);
 }
@@ -321,10 +321,10 @@ void raygui_register_fns() {
 ## File Structure
 
 ```
-raygui/
+rfui/
 ├── include/
-│   └── raygui/
-│       ├── raygui.h        # Public API
+│   └── rfui/
+│       ├── rayforce-ui.h        # Public API
 │       ├── widget.h        # Widget types and struct
 │       └── queue.h         # Thread-safe queues
 ├── src/

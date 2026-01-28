@@ -1,5 +1,5 @@
 // src/widget.c
-#include "../include/raygui/widget.h"
+#include "../include/rfui/widget.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -10,20 +10,20 @@ extern char* strdup(const char* s);
 // Buffer size for widget formatting
 #define WIDGET_FORMAT_BUF_SIZE 256
 
-const char* raygui_widget_type_name(raygui_widget_type_t type) {
+const char* rfui_widget_type_name(rfui_widget_type_t type) {
     switch (type) {
-        case RAYGUI_WIDGET_GRID:  return "grid";
-        case RAYGUI_WIDGET_CHART: return "chart";
-        case RAYGUI_WIDGET_TEXT:  return "text";
-        case RAYGUI_WIDGET_REPL:  return "repl";
+        case RFUI_WIDGET_GRID:  return "grid";
+        case RFUI_WIDGET_CHART: return "chart";
+        case RFUI_WIDGET_TEXT:  return "text";
+        case RFUI_WIDGET_REPL:  return "repl";
         default: return "unknown";
     }
 }
 
-raygui_widget_t* raygui_widget_create(raygui_widget_type_t type, const char* name) {
+rfui_widget_t* rfui_widget_create(rfui_widget_type_t type, const char* name) {
     if (!name) return NULL;
 
-    raygui_widget_t* w = malloc(sizeof(raygui_widget_t));
+    rfui_widget_t* w = malloc(sizeof(rfui_widget_t));
     if (!w) return NULL;
 
     w->name = strdup(name);
@@ -44,7 +44,7 @@ raygui_widget_t* raygui_widget_create(raygui_widget_type_t type, const char* nam
     return w;
 }
 
-nil_t raygui_widget_destroy(raygui_widget_t* w) {
+nil_t rfui_widget_destroy(rfui_widget_t* w) {
     if (!w) return;
 
     free(w->name);
@@ -56,13 +56,13 @@ nil_t raygui_widget_destroy(raygui_widget_t* w) {
     free(w);
 }
 
-char* raygui_widget_format(raygui_widget_t* w) {
+char* rfui_widget_format(rfui_widget_t* w) {
     if (!w) return NULL;
 
     char* buf = malloc(WIDGET_FORMAT_BUF_SIZE);
     if (!buf) return NULL;
 
     snprintf(buf, WIDGET_FORMAT_BUF_SIZE, "widget<%s:\"%s\">",
-             raygui_widget_type_name(w->type), w->name);
+             rfui_widget_type_name(w->type), w->name);
     return buf;
 }

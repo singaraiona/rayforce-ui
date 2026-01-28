@@ -10,25 +10,25 @@
 #include "../deps/rayforce/core/util.h"
 #include "../deps/rayforce/core/dynlib.h"  // For ext_t (external object structure)
 #include "../deps/rayforce/core/io.h"      // For ray_load (script execution)
-#include "../include/raygui/context.h"
-#include "../include/raygui/message.h"
-#include "../include/raygui/queue.h"
-#include "../include/raygui/widget.h"
-#include "../include/raygui/rayforce_thread.h"
+#include "../include/rfui/context.h"
+#include "../include/rfui/message.h"
+#include "../include/rfui/queue.h"
+#include "../include/rfui/widget.h"
+#include "../include/rfui/rayforce_thread.h"
 #include <GLFW/glfw3.h>
 
-// Thread-local context for raygui functions
-static __thread raygui_ctx_t* g_ctx = NULL;
+// Thread-local context for rayforce-ui functions
+static __thread rfui_ctx_t* g_ctx = NULL;
 
 // Forward declaration
 static void on_ui_message(raw_p data);
 
 // Process a single UI message
-static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
+static void process_ui_message(rfui_ctx_t* ctx, rfui_ui_msg_t* msg) {
     if (!msg) return;
 
     switch (msg->type) {
-        case RAYGUI_MSG_EVAL:
+        case RFUI_MSG_EVAL:
             if (msg->expr) {
                 // Evaluate expression
                 obj_p result = eval_str(msg->expr);
@@ -51,14 +51,14 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
 
                 // Send result back to UI
                 if (result_text) {
-                    raygui_ray_msg_t* reply = (raygui_ray_msg_t*)malloc(sizeof(raygui_ray_msg_t));
+                    rfui_ray_msg_t* reply = (rfui_ray_msg_t*)malloc(sizeof(rfui_ray_msg_t));
                     if (reply) {
-                        reply->type = RAYGUI_MSG_RESULT;
+                        reply->type = RFUI_MSG_RESULT;
                         reply->widget = NULL;
                         reply->data = NULL;
                         reply->text = result_text;
 
-                        if (raygui_queue_push(ctx->ray_to_ui, reply)) {
+                        if (rfui_queue_push(ctx->ray_to_ui, reply)) {
                             glfwPostEmptyEvent();  // Wake UI thread
                         } else {
                             free(result_text);
@@ -73,7 +73,7 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
             }
             break;
 
-        case RAYGUI_MSG_SET_POST_QUERY:
+        case RFUI_MSG_SET_POST_QUERY:
             if (!msg->widget) {
                 // Null widget - nothing to do
                 if (msg->expr) free(msg->expr);
@@ -96,16 +96,16 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
             }
             break;
 
-        case RAYGUI_MSG_DROP:
+        case RFUI_MSG_DROP:
             // Drop obj_p after render
             if (msg->obj) {
                 drop_obj(msg->obj);
             }
             break;
 
-        case RAYGUI_MSG_QUIT:
+        case RFUI_MSG_QUIT:
             // Set quit flag
-            raygui_ctx_set_quit(ctx, B8_TRUE);
+            rfui_ctx_set_quit(ctx, B8_TRUE);
             // Exit the poll loop
             if (runtime_get()) {
                 poll_exit(runtime_get()->poll, 0);
@@ -123,8 +123,8 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
 
 // Waker callback - called when UI thread wakes the Rayforce thread
 static void on_ui_message(raw_p data) {
-    raygui_ctx_t* ctx = (raygui_ctx_t*)data;
-    raygui_ui_msg_t* msg;
+    rfui_ctx_t* ctx = (rfui_ctx_t*)data;
+    rfui_ui_msg_t* msg;
 
     if (!ctx) return;
 
@@ -134,34 +134,34 @@ static void on_ui_message(raw_p data) {
 
     // Drain the queue and process all pending messages
     // Check quit flag to exit early on shutdown
-    while (!raygui_ctx_get_quit(ctx) &&
-           (msg = (raygui_ui_msg_t*)raygui_queue_pop(ctx->ui_to_ray)) != NULL) {
+    while (!rfui_ctx_get_quit(ctx) &&
+           (msg = (rfui_ui_msg_t*)rfui_queue_pop(ctx->ui_to_ray)) != NULL) {
         process_ui_message(ctx, msg);
     }
 }
 
-// Register raygui extension types (stub for now)
-static void register_raygui_types(void) {
+// Register rayforce-ui extension types (stub for now)
+static void register_rfui_types(void) {
     // Widget type uses TYPE_EXT (external) which is built-in
     // No custom type registration needed
 }
 
 // Helper: Map symbol string to widget type
-static b8_t widget_type_from_symbol(i64_t sym_id, raygui_widget_type_t* out_type) {
+static b8_t widget_type_from_symbol(i64_t sym_id, rfui_widget_type_t* out_type) {
     const char* type_str = str_from_symbol(sym_id);
     if (!type_str) return B8_FALSE;
 
     if (strcmp(type_str, "grid") == 0) {
-        *out_type = RAYGUI_WIDGET_GRID;
+        *out_type = RFUI_WIDGET_GRID;
         return B8_TRUE;
     } else if (strcmp(type_str, "chart") == 0) {
-        *out_type = RAYGUI_WIDGET_CHART;
+        *out_type = RFUI_WIDGET_CHART;
         return B8_TRUE;
     } else if (strcmp(type_str, "text") == 0) {
-        *out_type = RAYGUI_WIDGET_TEXT;
+        *out_type = RFUI_WIDGET_TEXT;
         return B8_TRUE;
     } else if (strcmp(type_str, "repl") == 0) {
-        *out_type = RAYGUI_WIDGET_REPL;
+        *out_type = RFUI_WIDGET_REPL;
         return B8_TRUE;
     }
     return B8_FALSE;
@@ -184,7 +184,7 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
 
     // Fail fast: check context before doing any work
     if (!g_ctx) {
-        return ray_err("widget: no raygui context available");
+        return ray_err("widget: no rayforce-ui context available");
     }
 
     obj_p config = x[0];
@@ -208,7 +208,7 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
     }
 
     // Map symbol to widget type
-    raygui_widget_type_t wtype;
+    rfui_widget_type_t wtype;
     if (!widget_type_from_symbol(type_val->i64, &wtype)) {
         drop_obj(type_val);
         drop_obj(name_val);
@@ -227,7 +227,7 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
     drop_obj(name_val);
 
     // Create widget
-    raygui_widget_t* w = raygui_widget_create(wtype, name_str);
+    rfui_widget_t* w = rfui_widget_create(wtype, name_str);
     free(name_str);
 
     if (!w) {
@@ -235,17 +235,17 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
     }
 
     // Send WIDGET_CREATED message to UI
-    raygui_ray_msg_t* msg = malloc(sizeof(raygui_ray_msg_t));
+    rfui_ray_msg_t* msg = malloc(sizeof(rfui_ray_msg_t));
     if (!msg) {
-        raygui_widget_destroy(w);
+        rfui_widget_destroy(w);
         return ray_err("widget: failed to allocate message");
     }
-    msg->type = RAYGUI_MSG_WIDGET_CREATED;
+    msg->type = RFUI_MSG_WIDGET_CREATED;
     msg->widget = w;
     msg->data = NULL;
     msg->text = NULL;
 
-    raygui_queue_push(g_ctx->ray_to_ui, msg);
+    rfui_queue_push(g_ctx->ray_to_ui, msg);
     glfwPostEmptyEvent();  // Wake UI thread
 
     // Return external object wrapping widget pointer
@@ -280,14 +280,14 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
     // Extract widget pointer from external object
     // TYPE_EXT stores data in ext_t structure: { raw_p ptr; nil_t (*drop)(raw_p); }
     ext_p ext = (ext_p)AS_C8(widget_obj);
-    raygui_widget_t* w = (raygui_widget_t*)ext->ptr;
+    rfui_widget_t* w = (rfui_widget_t*)ext->ptr;
     if (!w) {
         return ray_err("draw: widget is null");
     }
 
     // Check we have context
     if (!g_ctx) {
-        return ray_err("draw: no raygui context available");
+        return ray_err("draw: no rayforce-ui context available");
     }
 
     // Apply post_query transformation if widget has one
@@ -336,17 +336,17 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
     }
 
     // Send DRAW message to UI
-    raygui_ray_msg_t* msg = malloc(sizeof(raygui_ray_msg_t));
+    rfui_ray_msg_t* msg = malloc(sizeof(rfui_ray_msg_t));
     if (!msg) {
         drop_obj(final_data);
         return ray_err("draw: failed to allocate message");
     }
-    msg->type = RAYGUI_MSG_DRAW;
+    msg->type = RFUI_MSG_DRAW;
     msg->widget = w;
     msg->text = NULL;
 
     // For text widgets, pre-format on Rayforce thread (UI thread has no runtime)
-    if (w->type == RAYGUI_WIDGET_TEXT) {
+    if (w->type == RFUI_WIDGET_TEXT) {
         obj_p fmt = obj_fmt(final_data, B8_TRUE);
         if (fmt && fmt->type == TYPE_C8) {
             msg->text = (char*)malloc(fmt->len + 1);
@@ -363,7 +363,7 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
         msg->data = final_data;
     }
 
-    raygui_queue_push(g_ctx->ray_to_ui, msg);
+    rfui_queue_push(g_ctx->ray_to_ui, msg);
     glfwPostEmptyEvent();  // Wake UI thread
 
     // Return widget for chaining
@@ -372,7 +372,7 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
 
 // Macro to register a function into the runtime's function dict
 // Based on REGISTER_FN from env.c but adapted for external registration
-#define RAYGUI_REGISTER_FN(functions, name, fn_type, flags, fn_ptr)   \
+#define RFUI_REGISTER_FN(functions, name, fn_type, flags, fn_ptr)   \
     {                                                                  \
         i64_t _k = symbols_intern(name, strlen(name));                \
         push_raw(&AS_LIST(functions)[0], &_k);                        \
@@ -382,22 +382,22 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
         push_raw(&AS_LIST(functions)[1], &_o);                        \
     }
 
-// Register raygui functions with Rayforce runtime
-static void register_raygui_functions(void) {
+// Register rayforce-ui functions with Rayforce runtime
+static void register_rfui_functions(void) {
     runtime_p rt = runtime_get();
     if (!rt) return;
 
     obj_p functions = rt->env.functions;
 
     // Register widget function: (widget {type: 'grid name: "name"}) -> external
-    RAYGUI_REGISTER_FN(functions, "widget", TYPE_VARY, FN_NONE, fn_widget);
+    RFUI_REGISTER_FN(functions, "widget", TYPE_VARY, FN_NONE, fn_widget);
 
     // Register draw function: (draw widget data) -> widget
-    RAYGUI_REGISTER_FN(functions, "draw", TYPE_VARY, FN_NONE, fn_draw);
+    RFUI_REGISTER_FN(functions, "draw", TYPE_VARY, FN_NONE, fn_draw);
 }
 
-void* raygui_rayforce_thread(void* arg) {
-    raygui_ctx_t* ctx = (raygui_ctx_t*)arg;
+void* rfui_rayforce_thread(void* arg) {
+    rfui_ctx_t* ctx = (rfui_ctx_t*)arg;
     runtime_p runtime;
     poll_waker_p waker;
 
@@ -409,19 +409,19 @@ void* raygui_rayforce_thread(void* arg) {
     runtime = runtime_create(ctx->argc, ctx->argv);
     if (!runtime) {
         // Signal ready anyway so UI thread doesn't hang
-        raygui_ctx_set_quit(ctx, B8_TRUE);
-        raygui_ctx_signal_ready(ctx);
+        rfui_ctx_set_quit(ctx, B8_TRUE);
+        rfui_ctx_signal_ready(ctx);
         return NULL;
     }
 
-    // Step 2: Set thread-local context for raygui functions
+    // Step 2: Set thread-local context for rayforce-ui functions
     g_ctx = ctx;
 
-    // Step 3: Register raygui extension types
-    register_raygui_types();
+    // Step 3: Register rayforce-ui extension types
+    register_rfui_types();
 
-    // Step 4: Register raygui functions (widget, draw)
-    register_raygui_functions();
+    // Step 4: Register rayforce-ui functions (widget, draw)
+    register_rfui_functions();
 
     // Step 5: Load script file if provided via command line
     {
@@ -446,16 +446,16 @@ void* raygui_rayforce_thread(void* arg) {
     if (!waker) {
         g_ctx = NULL;
         runtime_destroy();
-        raygui_ctx_set_quit(ctx, B8_TRUE);
-        raygui_ctx_signal_ready(ctx);
+        rfui_ctx_set_quit(ctx, B8_TRUE);
+        rfui_ctx_signal_ready(ctx);
         return NULL;
     }
 
     // Step 7: Store waker in context
-    raygui_ctx_set_waker(ctx, waker);
+    rfui_ctx_set_waker(ctx, waker);
 
     // Step 8: Signal ready
-    raygui_ctx_signal_ready(ctx);
+    rfui_ctx_signal_ready(ctx);
 
     // Step 9: Create default REPL widget
     {
@@ -471,7 +471,7 @@ void* raygui_rayforce_thread(void* arg) {
     // Cleanup
     g_ctx = NULL;
     // Waker is a separate allocation - must be explicitly destroyed
-    raygui_ctx_set_waker(ctx, NULL);
+    rfui_ctx_set_waker(ctx, NULL);
     poll_waker_destroy(waker);
     runtime_destroy();
 

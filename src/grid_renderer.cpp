@@ -6,33 +6,46 @@
 #include <stdlib.h>
 
 #include "imgui.h"
+#include "../include/rfui/icons.h"
 
 // Make rayforce headers C++ compatible by redefining _Static_assert
 #define _Static_assert static_assert
 
 extern "C" {
-#include "../include/raygui/grid_renderer.h"
-#include "../include/raygui/widget.h"
-#include "../include/raygui/context.h"
-#include "../include/raygui/message.h"
-#include "../include/raygui/queue.h"
+#include "../include/rfui/grid_renderer.h"
+#include "../include/rfui/widget.h"
+#include "../include/rfui/context.h"
+#include "../include/rfui/message.h"
+#include "../include/rfui/queue.h"
 #include "../deps/rayforce/core/poll.h"
 
 // Global context declared in main.c
-extern raygui_ctx_t* g_ctx;
+extern rfui_ctx_t* g_ctx;
 }
+
+#define MAX_COLOR_RULES 8
+
+typedef struct color_rule_t {
+    char column[64];     // Column name to match
+    char value[64];      // Value to match (string comparison)
+    ImVec4 color;        // Text color when matched
+    bool enabled;
+} color_rule_t;
 
 // UI state for grid selection (stored in widget->ui_state)
 typedef struct grid_ui_state_t {
     int selected_row;  // -1 = no selection
+    color_rule_t color_rules[MAX_COLOR_RULES];
+    int num_rules;
+    bool settings_open;
 } grid_ui_state_t;
 
 // Helper to send MSG_SET_POST_QUERY to Rayforce thread
-static void send_post_query(raygui_widget_t* widget, const char* expr) {
+static void send_post_query(rfui_widget_t* widget, const char* expr) {
     if (!g_ctx || !widget) return;
 
     // Allocate message
-    raygui_ui_msg_t* msg = (raygui_ui_msg_t*)malloc(sizeof(raygui_ui_msg_t));
+    rfui_ui_msg_t* msg = (rfui_ui_msg_t*)malloc(sizeof(rfui_ui_msg_t));
     if (!msg) return;
 
     // Duplicate expression string
@@ -47,20 +60,20 @@ static void send_post_query(raygui_widget_t* widget, const char* expr) {
         memcpy(expr_copy, expr, len + 1);
     }
 
-    msg->type = RAYGUI_MSG_SET_POST_QUERY;
+    msg->type = RFUI_MSG_SET_POST_QUERY;
     msg->expr = expr_copy;
     msg->obj = nullptr;
     msg->widget = widget;
 
     // Push to queue
-    if (!raygui_queue_push(g_ctx->ui_to_ray, msg)) {
+    if (!rfui_queue_push(g_ctx->ui_to_ray, msg)) {
         if (expr_copy) free(expr_copy);
         free(msg);
         return;
     }
 
     // Wake Rayforce thread
-    poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
+    poll_waker_p waker = rfui_ctx_get_waker(g_ctx);
     if (waker) {
         poll_waker_wake(waker);
     }
@@ -193,12 +206,33 @@ static void render_cell(obj_p col, i64_t row) {
     }
 }
 
+// Get cell value as string for color rule matching
+static void cell_to_string(obj_p col, i64_t row, char* buf, size_t buf_sz) {
+    buf[0] = '\0';
+    if (!col || row < 0 || row >= col->len) return;
+
+    switch (col->type) {
+        case TYPE_I64:     snprintf(buf, buf_sz, "%lld", (long long)AS_I64(col)[row]); break;
+        case TYPE_I32:     snprintf(buf, buf_sz, "%d", AS_I32(col)[row]); break;
+        case TYPE_I16:     snprintf(buf, buf_sz, "%d", (int)AS_I16(col)[row]); break;
+        case TYPE_F64:     snprintf(buf, buf_sz, "%.6g", AS_F64(col)[row]); break;
+        case TYPE_SYMBOL: {
+            i64_t sid = AS_SYMBOL(col)[row];
+            const char* s = str_from_symbol(sid);
+            if (s) snprintf(buf, buf_sz, "%s", s);
+            break;
+        }
+        case TYPE_B8:      snprintf(buf, buf_sz, "%s", AS_B8(col)[row] ? "true" : "false"); break;
+        default: break;
+    }
+}
+
 extern "C" {
 
 // Note: render_data lifetime is managed by the widget registry and must remain
 // valid during render. The caller is responsible for ensuring render_data
 // points to valid memory throughout the widget's lifecycle.
-nil_t raygui_render_grid(raygui_widget_t* widget) {
+nil_t rfui_render_grid(rfui_widget_t* widget) {
     if (widget == nullptr) {
         return;
     }
@@ -278,6 +312,8 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         ui_state = (grid_ui_state_t*)malloc(sizeof(grid_ui_state_t));
         if (ui_state) {
             ui_state->selected_row = -1;
+            ui_state->num_rules = 0;
+            ui_state->settings_open = false;
             widget->ui_state = ui_state;
         }
     }
@@ -289,7 +325,7 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
                     (long long)nrows, (long long)ncols, ui_state->selected_row);
         ImGui::SameLine();
         ImGui::PopStyleColor();
-        if (ImGui::SmallButton("Clear")) {
+        if (ImGui::SmallButton(ICON_ERASER " Clear")) {
             ui_state->selected_row = -1;
             send_post_query(widget, nullptr);
         }
@@ -297,6 +333,71 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         ImGui::Text("Rows: %lld  Columns: %lld", (long long)nrows, (long long)ncols);
         ImGui::PopStyleColor();
     }
+
+    // Settings button
+    if (ui_state) {
+        ImGui::SameLine();
+        if (ImGui::SmallButton(ICON_GEAR " Settings")) {
+            ImGui::OpenPopup("GridSettings");
+        }
+
+        if (ImGui::BeginPopup("GridSettings")) {
+            ImGui::Text(ICON_PALETTE " Color Rules");
+            ImGui::Separator();
+
+            for (int i = 0; i < ui_state->num_rules; i++) {
+                color_rule_t* r = &ui_state->color_rules[i];
+                ImGui::PushID(i);
+
+                // Column combo
+                ImGui::SetNextItemWidth(100);
+                if (ImGui::BeginCombo("##col", r->column[0] ? r->column : "<column>")) {
+                    for (i64_t c = 0; c < ncols; c++) {
+                        const char* name = str_from_symbol(AS_SYMBOL(keys)[c]);
+                        if (name && ImGui::Selectable(name, strcmp(r->column, name) == 0)) {
+                            snprintf(r->column, sizeof(r->column), "%s", name);
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(80);
+                ImGui::InputText("##val", r->value, sizeof(r->value));
+
+                ImGui::SameLine();
+                ImGui::ColorEdit3("##clr", (float*)&r->color,
+                    ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+
+                ImGui::SameLine();
+                ImGui::Checkbox("##en", &r->enabled);
+
+                ImGui::SameLine();
+                if (ImGui::SmallButton(ICON_XMARK)) {
+                    // Remove rule by shifting
+                    for (int j = i; j < ui_state->num_rules - 1; j++)
+                        ui_state->color_rules[j] = ui_state->color_rules[j + 1];
+                    ui_state->num_rules--;
+                    i--;
+                }
+
+                ImGui::PopID();
+            }
+
+            if (ui_state->num_rules < MAX_COLOR_RULES) {
+                if (ImGui::Button(ICON_PLUS " Add Rule")) {
+                    color_rule_t* r = &ui_state->color_rules[ui_state->num_rules++];
+                    r->column[0] = '\0';
+                    r->value[0] = '\0';
+                    r->color = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+                    r->enabled = true;
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+    }
+
     ImGui::Separator();
 
     // Create ImGui table with virtualization
@@ -378,6 +479,23 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
         // Cache column pointers for performance (avoid repeated AS_LIST dereference)
         obj_p* cols = AS_LIST(vals);
 
+        // Pre-resolve color rule column indices
+        int rule_col_idx[MAX_COLOR_RULES];
+        if (ui_state) {
+            for (int ri = 0; ri < ui_state->num_rules; ri++) {
+                rule_col_idx[ri] = -1;
+                if (!ui_state->color_rules[ri].enabled || !ui_state->color_rules[ri].column[0])
+                    continue;
+                for (i64_t c = 0; c < ncols; c++) {
+                    const char* name = str_from_symbol(AS_SYMBOL(keys)[c]);
+                    if (name && strcmp(name, ui_state->color_rules[ri].column) == 0) {
+                        rule_col_idx[ri] = (int)c;
+                        break;
+                    }
+                }
+            }
+        }
+
         while (clipper.Step()) {
             for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
                 ImGui::TableNextRow();
@@ -431,8 +549,27 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
                         ImGui::SameLine();
                     }
 
+                    // Check color rules for this cell
+                    bool cell_colored = false;
+                    if (ui_state) {
+                        for (int ri = 0; ri < ui_state->num_rules; ri++) {
+                            color_rule_t* r = &ui_state->color_rules[ri];
+                            if (!r->enabled || rule_col_idx[ri] != (int)col_idx) continue;
+                            char cell_buf[128];
+                            cell_to_string(col, (i64_t)row, cell_buf, sizeof(cell_buf));
+                            if (strcmp(cell_buf, r->value) == 0) {
+                                ImGui::PushStyleColor(ImGuiCol_Text, r->color);
+                                cell_colored = true;
+                                break;
+                            }
+                        }
+                    }
+
                     // Render cell with zero-copy direct buffer access
                     render_cell(col, (i64_t)row);
+
+                    if (cell_colored)
+                        ImGui::PopStyleColor();
                 }
             }
         }

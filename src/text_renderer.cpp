@@ -16,13 +16,13 @@
 #define _Static_assert static_assert
 
 extern "C" {
-#include "../include/raygui/text_renderer.h"
-#include "../include/raygui/widget.h"
+#include "../include/rfui/text_renderer.h"
+#include "../include/rfui/widget.h"
 }
 
 extern "C" {
 
-nil_t raygui_render_text(raygui_widget_t* widget) {
+nil_t rfui_render_text(rfui_widget_t* widget) {
     if (widget == nullptr) {
         return;
     }

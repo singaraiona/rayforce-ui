@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**raygui** is a GUI framework for RayforceDB that extends the Rayforce runtime with native widget functions. Widgets are first-class Rayforce objects defined and controlled via Rayfall expressions.
+**rayforce-ui** is a GUI framework for RayforceDB that extends the Rayforce runtime with native widget functions. Widgets are first-class Rayforce objects defined and controlled via Rayfall expressions.
 
 Built on:
 - **Rayforce**: Columnar database engine with pure C core, thread-local heaps, and IO poll
@@ -99,8 +99,8 @@ All `obj_p` allocation happens in Rayforce thread (thread-local heaps).
 ```c
 // Follow Rayforce's runtime pattern
 runtime_p runtime = runtime_create(argc, argv);
-raygui_register_types();  // widget ext type with format fn
-raygui_register_fns();    // widget, draw
+rfui_register_types();  // widget ext type with format fn
+rfui_register_fns();    // widget, draw
 poll_waker_create(runtime->poll, on_ui_message, ctx);
 runtime_run();  // blocks until poll_exit
 runtime_destroy();
@@ -126,7 +126,7 @@ ray_register_fn("draw", 2, fn_draw);
 
 Use `ray` prefix (not `rf`):
 - `ray_register_ext`, `ray_register_fn`
-- `raygui_widget_t`, `raygui_ctx_t`
+- `rfui_widget_t`, `rfui_ctx_t`
 
 ## Specialized Agents
 
@@ -140,4 +140,4 @@ Invoke `/rayfall` for complete language reference.
 
 ## Design Document
 
-See `docs/plans/2026-01-28-raygui-design.md` for full architecture.
+See `docs/plans/2026-01-28-rayforce-ui-design.md` for full architecture.

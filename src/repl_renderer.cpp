@@ -7,6 +7,7 @@
 #include <string>
 
 #include "imgui.h"
+#include "../include/rfui/icons.h"
 
 // Scrollback limits
 static const int MAX_HISTORY_SIZE = 1000;
@@ -15,9 +16,10 @@ static const int MAX_OUTPUT_LINES = 10000;
 #define _Static_assert static_assert
 
 extern "C" {
-#include "../include/raygui/repl_renderer.h"
-#include "../include/raygui/widget.h"
-#include "../include/raygui/raygui.h"
+#include "../include/rfui/repl_renderer.h"
+#include "../include/rfui/widget.h"
+#include "../include/rfui/rfui.h"
+#include "../include/rfui/logo.h"
 }
 
 // Line type for terminal display
@@ -41,6 +43,152 @@ struct repl_state_t {
     bool scroll_to_bottom;
     std::string saved_input;
 };
+
+// Standard ANSI 8-color palette
+static const ImVec4 ansi_colors[8] = {
+    ImVec4(0.0f,   0.0f,   0.0f,   1.0f),  // 0 black
+    ImVec4(0.804f, 0.141f, 0.114f, 1.0f),  // 1 red
+    ImVec4(0.247f, 0.725f, 0.314f, 1.0f),  // 2 green
+    ImVec4(0.824f, 0.600f, 0.133f, 1.0f),  // 3 yellow
+    ImVec4(0.345f, 0.651f, 1.000f, 1.0f),  // 4 blue
+    ImVec4(0.737f, 0.549f, 1.000f, 1.0f),  // 5 magenta
+    ImVec4(0.224f, 0.824f, 0.753f, 1.0f),  // 6 cyan
+    ImVec4(0.902f, 0.929f, 0.953f, 1.0f),  // 7 white
+};
+
+// Bright ANSI colors (90-97)
+static const ImVec4 ansi_bright[8] = {
+    ImVec4(0.545f, 0.580f, 0.620f, 1.0f),  // 0 bright black (gray)
+    ImVec4(0.973f, 0.318f, 0.286f, 1.0f),  // 1 bright red
+    ImVec4(0.341f, 0.894f, 0.400f, 1.0f),  // 2 bright green
+    ImVec4(0.941f, 0.769f, 0.290f, 1.0f),  // 3 bright yellow
+    ImVec4(0.475f, 0.753f, 1.000f, 1.0f),  // 4 bright blue
+    ImVec4(0.847f, 0.694f, 1.000f, 1.0f),  // 5 bright magenta
+    ImVec4(0.388f, 0.922f, 0.855f, 1.0f),  // 6 bright cyan
+    ImVec4(1.000f, 1.000f, 1.000f, 1.0f),  // 7 bright white
+};
+
+// Render text with ANSI escape sequence support
+// Handles: ESC[0m (reset), ESC[1m (bold), ESC[3m (italic/dim),
+//          ESC[30-37m, ESC[90-97m (fg colors), ESC[38;5;Nm (256-color)
+static void render_ansi_text(const char* text, ImVec4 default_color) {
+    if (!text || !*text) return;
+
+    ImVec4 current_color = default_color;
+    bool bold = false;
+    bool has_custom_color = false;
+    const char* p = text;
+
+    while (*p) {
+        // Find next ESC or end
+        const char* span_start = p;
+        while (*p && !(*p == '\033' && *(p + 1) == '[')) {
+            p++;
+        }
+
+        // Render text span if any
+        if (p > span_start) {
+            ImGui::PushStyleColor(ImGuiCol_Text, current_color);
+            ImGui::TextUnformatted(span_start, p);
+            ImGui::PopStyleColor();
+            // SameLine for next span on same line (no newline between spans)
+            if (*p) ImGui::SameLine(0, 0);
+        }
+
+        if (!*p) break;
+
+        // Parse ESC[ ... m sequence
+        p += 2;  // skip ESC[
+        while (*p) {
+            // Parse number
+            int code = 0;
+            bool has_num = false;
+            while (*p >= '0' && *p <= '9') {
+                code = code * 10 + (*p - '0');
+                has_num = true;
+                p++;
+            }
+            if (!has_num) code = 0;
+
+            // Apply SGR code
+            if (code == 0) {
+                // Reset
+                current_color = default_color;
+                bold = false;
+                has_custom_color = false;
+            } else if (code == 1) {
+                bold = true;
+                // If we have a standard color, upgrade to bright
+                if (!has_custom_color) {
+                    current_color = default_color;
+                }
+            } else if (code == 2 || code == 3) {
+                // Dim/italic — slightly reduce alpha
+                current_color.w = 0.7f;
+            } else if (code == 4 || code == 9) {
+                // Underline/strikethrough — no ImGui support, ignore
+            } else if (code >= 30 && code <= 37) {
+                current_color = bold ? ansi_bright[code - 30] : ansi_colors[code - 30];
+                has_custom_color = true;
+            } else if (code == 39) {
+                current_color = default_color;
+                has_custom_color = false;
+            } else if (code >= 90 && code <= 97) {
+                current_color = ansi_bright[code - 90];
+                has_custom_color = true;
+            } else if (code == 38) {
+                // Extended color: 38;5;N (256-color) or 38;2;R;G;B (truecolor)
+                if (*p == ';') {
+                    p++;
+                    int mode = 0;
+                    while (*p >= '0' && *p <= '9') { mode = mode * 10 + (*p - '0'); p++; }
+                    if (mode == 5 && *p == ';') {
+                        // 256-color
+                        p++;
+                        int idx = 0;
+                        while (*p >= '0' && *p <= '9') { idx = idx * 10 + (*p - '0'); p++; }
+                        if (idx < 8) {
+                            current_color = ansi_colors[idx];
+                        } else if (idx < 16) {
+                            current_color = ansi_bright[idx - 8];
+                        } else if (idx < 232) {
+                            // 216-color cube: 16 + 36*r + 6*g + b
+                            int v = idx - 16;
+                            int r = v / 36; int g = (v % 36) / 6; int b = v % 6;
+                            current_color = ImVec4(r / 5.0f, g / 5.0f, b / 5.0f, 1.0f);
+                        } else {
+                            // Grayscale: 232-255 -> 8..238
+                            float gray = (float)(8 + (idx - 232) * 10) / 255.0f;
+                            current_color = ImVec4(gray, gray, gray, 1.0f);
+                        }
+                        has_custom_color = true;
+                    } else if (mode == 2 && *p == ';') {
+                        // Truecolor: 38;2;R;G;B
+                        int rgb[3] = {0, 0, 0};
+                        for (int i = 0; i < 3 && *p == ';'; i++) {
+                            p++;
+                            while (*p >= '0' && *p <= '9') { rgb[i] = rgb[i] * 10 + (*p - '0'); p++; }
+                        }
+                        current_color = ImVec4(rgb[0] / 255.0f, rgb[1] / 255.0f, rgb[2] / 255.0f, 1.0f);
+                        has_custom_color = true;
+                    }
+                }
+            }
+
+            if (*p == ';') {
+                p++;  // more codes follow
+            } else if (*p == 'm') {
+                p++;  // end of sequence
+                break;
+            } else {
+                // Malformed — skip to 'm' or end
+                while (*p && *p != 'm') p++;
+                if (*p == 'm') p++;
+                break;
+            }
+        }
+    }
+}
 
 // History navigation callback
 static int input_callback(ImGuiInputTextCallbackData* data) {
@@ -83,7 +231,7 @@ static int input_callback(ImGuiInputTextCallbackData* data) {
 
 extern "C" {
 
-nil_t raygui_render_repl(raygui_widget_t* widget) {
+nil_t rfui_render_repl(rfui_widget_t* widget) {
     if (widget == nullptr) return;
 
     // Initialize state
@@ -106,25 +254,37 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
     ImGui::BeginChild("##terminal", ImVec2(0, 0), false,
                       ImGuiWindowFlags_HorizontalScrollbar);
 
-    // Display all previous lines
-    for (const terminal_line_t& line : state->lines) {
-        switch (line.type) {
-            case LINE_INPUT:
-                ImGui::PushStyleColor(ImGuiCol_Text, prompt_color);
-                ImGui::TextUnformatted(line.text.c_str());
-                ImGui::PopStyleColor();
-                break;
-            case LINE_RESULT:
-                ImGui::PushStyleColor(ImGuiCol_Text, result_color);
-                ImGui::TextUnformatted(line.text.c_str());
-                ImGui::PopStyleColor();
-                break;
-            case LINE_ERROR:
-                ImGui::PushStyleColor(ImGuiCol_Text, error_color);
-                ImGui::TextUnformatted(line.text.c_str());
-                ImGui::PopStyleColor();
-                break;
+    // Show centered logo watermark when REPL is empty
+    if (state->lines.empty()) {
+        unsigned int tex = rfui_logo_texture();
+        if (tex) {
+            int lw, lh;
+            rfui_logo_size(&lw, &lh);
+            ImVec2 avail = ImGui::GetContentRegionAvail();
+            float target_w = avail.x * 0.35f;
+            float scale = target_w / (float)lw;
+            float w = (float)lw * scale;
+            float h = (float)lh * scale;
+            ImVec2 cursor = ImGui::GetCursorScreenPos();
+            float cx = cursor.x + avail.x * 0.5f;
+            float cy = cursor.y + avail.y * 0.4f;
+            ImVec2 p0(cx - w * 0.5f, cy - h * 0.5f);
+            ImVec2 p1(cx + w * 0.5f, cy + h * 0.5f);
+            ImGui::GetWindowDrawList()->AddImage(
+                (ImTextureID)(intptr_t)tex, p0, p1,
+                ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 25));
         }
+    }
+
+    // Display all previous lines (with ANSI escape sequence support)
+    for (const terminal_line_t& line : state->lines) {
+        ImVec4 base_color;
+        switch (line.type) {
+            case LINE_INPUT: base_color = prompt_color; break;
+            case LINE_ERROR: base_color = error_color;  break;
+            default:         base_color = result_color;  break;
+        }
+        render_ansi_text(line.text.c_str(), base_color);
     }
 
     // Subtle separator between output and input
@@ -136,7 +296,7 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
 
     // Current input line: prompt + input field on same line
     ImGui::PushStyleColor(ImGuiCol_Text, prompt_color);
-    ImGui::TextUnformatted("> ");
+    ImGui::TextUnformatted(ICON_PROMPT " ");
     ImGui::PopStyleColor();
     ImGui::SameLine(0, 0);
 
@@ -181,10 +341,10 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
         if ((int)state->lines.size() >= MAX_OUTPUT_LINES) {
             state->lines.erase(state->lines.begin());
         }
-        state->lines.push_back({"> " + input, LINE_INPUT});
+        state->lines.push_back({std::string(ICON_PROMPT " ") + input, LINE_INPUT});
 
         // Evaluate
-        raygui_eval(state->input_buf);
+        rfui_eval(state->input_buf);
 
         // Clear
         state->input_buf[0] = '\0';
@@ -202,7 +362,7 @@ nil_t raygui_render_repl(raygui_widget_t* widget) {
     ImGui::EndChild();
 }
 
-nil_t raygui_repl_add_result(raygui_widget_t* widget, const char* text) {
+nil_t rfui_repl_add_result(rfui_widget_t* widget, const char* text) {
     if (widget == nullptr || text == nullptr) return;
 
     repl_state_t* state = (repl_state_t*)widget->ui_state;
@@ -221,7 +381,7 @@ nil_t raygui_repl_add_result(raygui_widget_t* widget, const char* text) {
     state->scroll_to_bottom = true;
 }
 
-nil_t raygui_repl_free_state(raygui_widget_t* widget) {
+nil_t rfui_repl_free_state(rfui_widget_t* widget) {
     if (widget == nullptr || widget->ui_state == nullptr) return;
 
     repl_state_t* state = (repl_state_t*)widget->ui_state;

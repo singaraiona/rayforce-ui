@@ -7,30 +7,31 @@
 #include <cfloat>  // FLT_MAX
 
 #include "imgui.h"
+#include "../include/rfui/icons.h"
 
 // Make rayforce headers C++ compatible by redefining _Static_assert
 #define _Static_assert static_assert
 
 extern "C" {
-#include "../include/raygui/widget_registry.h"
-#include "../include/raygui/widget.h"
-#include "../include/raygui/grid_renderer.h"
-#include "../include/raygui/chart_renderer.h"
-#include "../include/raygui/text_renderer.h"
-#include "../include/raygui/repl_renderer.h"
+#include "../include/rfui/widget_registry.h"
+#include "../include/rfui/widget.h"
+#include "../include/rfui/grid_renderer.h"
+#include "../include/rfui/chart_renderer.h"
+#include "../include/rfui/text_renderer.h"
+#include "../include/rfui/repl_renderer.h"
 }
 
 // Global widget storage
-static std::vector<raygui_widget_t*> g_widgets;
+static std::vector<rfui_widget_t*> g_widgets;
 
 extern "C" {
 
-nil_t raygui_registry_init(nil_t) {
+nil_t rfui_registry_init(nil_t) {
     // Nothing to do for std::vector - it's already initialized
     g_widgets.clear();
 }
 
-nil_t raygui_registry_destroy(nil_t) {
+nil_t rfui_registry_destroy(nil_t) {
     // Free all widgets
     // NOTE: Thread safety consideration - registry_destroy is called AFTER UI loop
     // exits but BEFORE Rayforce thread is joined. This means drop_obj calls in
@@ -38,14 +39,14 @@ nil_t raygui_registry_destroy(nil_t) {
     // TODO: This is known technical debt. For proper thread safety, widgets with
     // render_data should queue drops to Rayforce thread before destruction.
     // Current approach is acceptable for shutdown but not ideal.
-    for (raygui_widget_t* widget : g_widgets) {
+    for (rfui_widget_t* widget : g_widgets) {
         if (widget != nullptr) {
             // Free type-specific ui_state (must use delete for C++ objects)
             switch (widget->type) {
-                case RAYGUI_WIDGET_REPL:
-                    raygui_repl_free_state(widget);
+                case RFUI_WIDGET_REPL:
+                    rfui_repl_free_state(widget);
                     break;
-                case RAYGUI_WIDGET_TEXT:
+                case RFUI_WIDGET_TEXT:
                     // Text widget ui_state is a malloc'd char* (pre-formatted text)
                     if (widget->ui_state) {
                         free(widget->ui_state);
@@ -56,21 +57,29 @@ nil_t raygui_registry_destroy(nil_t) {
                     // Other widget types use plain malloc/free for ui_state
                     break;
             }
+
+            // Null out Rayforce obj_p fields before destroy — the Rayforce
+            // thread (and its heap) is already joined/gone at this point,
+            // so drop_obj would segfault on freed heap memory.
+            widget->data = nullptr;
+            widget->post_query = nullptr;
+            widget->on_select = nullptr;
+            widget->render_data = nullptr;
         }
-        raygui_widget_destroy(widget);
+        rfui_widget_destroy(widget);
     }
     g_widgets.clear();
 }
 
-nil_t raygui_registry_add(raygui_widget_t* widget) {
+nil_t rfui_registry_add(rfui_widget_t* widget) {
     if (widget == nullptr) {
         return;
     }
     g_widgets.push_back(widget);
 }
 
-nil_t raygui_registry_render(nil_t) {
-    for (raygui_widget_t* widget : g_widgets) {
+nil_t rfui_registry_render(nil_t) {
+    for (rfui_widget_t* widget : g_widgets) {
         if (widget == nullptr || !widget->is_open) {
             continue;
         }
@@ -79,28 +88,48 @@ nil_t raygui_registry_render(nil_t) {
         ImGui::SetNextWindowSizeConstraints(ImVec2(400, 300), ImVec2(FLT_MAX, FLT_MAX));
 
         // Set initial size on first appearance (only applies once)
-        if (widget->type == RAYGUI_WIDGET_REPL) {
+        if (widget->type == RFUI_WIDGET_REPL) {
             ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
         } else {
             ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
         }
 
+        // Build icon-prefixed window label
+        char window_label[256];
+        const char* icon = "";
+        switch (widget->type) {
+            case RFUI_WIDGET_GRID:  icon = ICON_TABLE " ";      break;
+            case RFUI_WIDGET_CHART: icon = ICON_CHART_LINE " "; break;
+            case RFUI_WIDGET_TEXT:  icon = ICON_FILE_LINES " "; break;
+            case RFUI_WIDGET_REPL:  icon = ICON_TERMINAL " ";   break;
+            default: break;
+        }
+        snprintf(window_label, sizeof(window_label), "%s%s", icon, widget->name);
+
+        // Make REPL semi-transparent so background logo shows through
+        bool repl_transparent = (widget->type == RFUI_WIDGET_REPL);
+        if (repl_transparent) {
+            ImVec4 bg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+            bg.w = 0.85f;
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, bg);
+        }
+
         // Begin widget window with close button
-        ImGui::Begin(widget->name, (bool*)&widget->is_open);
+        ImGui::Begin(window_label, (bool*)&widget->is_open);
 
         // Render based on widget type
         switch (widget->type) {
-            case RAYGUI_WIDGET_GRID:
-                raygui_render_grid(widget);
+            case RFUI_WIDGET_GRID:
+                rfui_render_grid(widget);
                 break;
-            case RAYGUI_WIDGET_CHART:
-                raygui_render_chart(widget);
+            case RFUI_WIDGET_CHART:
+                rfui_render_chart(widget);
                 break;
-            case RAYGUI_WIDGET_TEXT:
-                raygui_render_text(widget);
+            case RFUI_WIDGET_TEXT:
+                rfui_render_text(widget);
                 break;
-            case RAYGUI_WIDGET_REPL:
-                raygui_render_repl(widget);
+            case RFUI_WIDGET_REPL:
+                rfui_render_repl(widget);
                 break;
             default:
                 ImGui::TextDisabled("Unknown widget type: %d", widget->type);
@@ -108,10 +137,14 @@ nil_t raygui_registry_render(nil_t) {
         }
 
         ImGui::End();
+
+        if (repl_transparent) {
+            ImGui::PopStyleColor();
+        }
     }
 }
 
-obj_p raygui_registry_update_data(raygui_widget_t* widget, obj_p new_data) {
+obj_p rfui_registry_update_data(rfui_widget_t* widget, obj_p new_data) {
     if (widget == nullptr) {
         return nullptr;
     }
@@ -131,8 +164,8 @@ obj_p raygui_registry_update_data(raygui_widget_t* widget, obj_p new_data) {
     return old_data;
 }
 
-raygui_widget_t* raygui_registry_find_by_type(raygui_widget_type_t type) {
-    for (raygui_widget_t* widget : g_widgets) {
+rfui_widget_t* rfui_registry_find_by_type(rfui_widget_type_t type) {
+    for (rfui_widget_t* widget : g_widgets) {
         if (widget != nullptr && widget->type == type) {
             return widget;
         }
