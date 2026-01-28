@@ -6,3 +6,5 @@
 
 ;; Fetch and display data
 (draw g (write h "quotes"))
+
+(timer 1000 10000000 (fn [x] (draw g (write h "(take quotes -100)"))))
