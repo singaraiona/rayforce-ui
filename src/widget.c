@@ -15,7 +15,6 @@ const char* rfui_widget_type_name(rfui_widget_type_t type) {
         case RFUI_WIDGET_GRID:  return "grid";
         case RFUI_WIDGET_CHART: return "chart";
         case RFUI_WIDGET_TEXT:  return "text";
-        case RFUI_WIDGET_REPL:  return "repl";
         default: return "unknown";
     }
 }

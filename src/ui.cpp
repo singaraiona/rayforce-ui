@@ -16,6 +16,7 @@
 
 #include "../include/rfui/theme.h"
 #include "../include/rfui/logo.h"
+#include "../include/rfui/icons.h"
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -130,7 +131,8 @@ i32_t rfui_ui_init(nil_t) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 #endif
 
-    // Create window with graphics context
+    // Borderless main window — custom title bar replaces OS decoration
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
     g_window = glfwCreateWindow(1280, 720, "Rayforce UI", nullptr, nullptr);
     if (g_window == nullptr) {
         fprintf(stderr, "Failed to create GLFW window\n");
@@ -154,6 +156,7 @@ i32_t rfui_ui_init(nil_t) {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;     // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;   // Enable Multi-Viewport
 
     // Set up persistent layout file (ImGui auto-saves on shutdown, auto-loads on startup)
     g_ini_path = get_config_path();
@@ -166,7 +169,7 @@ i32_t rfui_ui_init(nil_t) {
     rfui_theme_apply();
 
     // Load JetBrains Mono font at proper size for HiDPI
-    float font_size = 16.0f * dpi_scale;
+    float font_size = 20.0f * dpi_scale;
     io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", font_size);
 
     // Merge FontAwesome icons into the regular font
@@ -195,6 +198,9 @@ i32_t rfui_ui_init(nil_t) {
     // Initialize widget registry
     rfui_registry_init();
 
+    // Initialize REPL (renders directly in main window)
+    rfui_repl_init();
+
     g_initialized = true;
     return 0;
 }
@@ -218,11 +224,7 @@ i32_t rfui_ui_run(nil_t) {
         // Note: We always poll first, then process messages
         glfwWaitEventsTimeout(0.016); // ~60fps timeout
 
-        // Skip rendering if window is minimized
-        if (glfwGetWindowAttrib(g_window, GLFW_ICONIFIED) != 0) {
-            ImGui_ImplGlfw_Sleep(10);
-            continue;
-        }
+        bool main_minimized = glfwGetWindowAttrib(g_window, GLFW_ICONIFIED) != 0;
 
         // Process messages from ray_to_ui queue (limited per frame)
         // Note: rfui_queue_pop returns NULL if queue is empty or NULL,
@@ -298,12 +300,9 @@ i32_t rfui_ui_run(nil_t) {
                         }
                         break;
                     case RFUI_MSG_RESULT:
-                        // Display result in REPL widget
+                        // Display result in REPL
                         if (msg->text) {
-                            rfui_widget_t* repl = rfui_registry_find_by_type(RFUI_WIDGET_REPL);
-                            if (repl) {
-                                rfui_repl_add_result(repl, msg->text);
-                            }
+                            rfui_repl_add_result_text(msg->text);
                         }
                         // Queue data for drop if present
                         if (msg->data) {
@@ -338,33 +337,170 @@ i32_t rfui_ui_run(nil_t) {
             }
         }
 
-        // Start the Dear ImGui frame
+        // Single ImGui frame — viewports handle multi-window
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Render background logo watermark (behind dockspace)
+        // Logo watermark behind content
         rfui_logo_render();
 
-        // Create dockspace — PassthruCentralNode makes empty areas transparent,
-        // so the background logo watermark shows through
-        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(),
-                                     ImGuiDockNodeFlags_PassthruCentralNode);
+        // Main window: custom title bar + REPL content
+        {
+            const ImGuiViewport* vp = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(vp->Pos);
+            ImGui::SetNextWindowSize(vp->Size);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.051f, 0.067f, 0.090f, 0.85f));
+            ImGui::Begin("##repl", nullptr,
+                         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+                         ImGuiWindowFlags_NoBringToFrontOnFocus |
+                         ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoScrollbar);
 
-        // Render all registered widgets
+            // --- Custom title bar ---
+            float title_h = ImGui::GetFrameHeight() + 6.0f;
+            ImVec2 title_min = ImGui::GetCursorScreenPos();
+            ImVec2 title_max(title_min.x + vp->Size.x, title_min.y + title_h);
+
+            // Title bar background
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                title_min, title_max,
+                IM_COL32(22, 27, 34, 255));  // COL_SURFACE #161B22
+
+            // App title (left side)
+            ImGui::SetCursorScreenPos(ImVec2(title_min.x + 12.0f,
+                                              title_min.y + (title_h - ImGui::GetFontSize()) * 0.5f));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.545f, 0.580f, 0.620f, 1.0f));
+            ImGui::TextUnformatted(ICON_TERMINAL " REPL");
+            ImGui::PopStyleColor();
+
+            // Window control buttons (right side) — simple text buttons
+            float btn_w = title_h * 1.4f;
+            float btn_x = title_max.x - btn_w * 3;
+            bool maximized = glfwGetWindowAttrib(g_window, GLFW_MAXIMIZED) != 0;
+
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.545f, 0.580f, 0.620f, 1.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+
+            // Minimize
+            ImGui::SetCursorScreenPos(ImVec2(btn_x, title_min.y));
+            if (ImGui::Button("\xe2\x94\x80##min", ImVec2(btn_w, title_h))) {
+                glfwIconifyWindow(g_window);
+            }
+
+            // Maximize / Restore
+            ImGui::SetCursorScreenPos(ImVec2(btn_x + btn_w, title_min.y));
+            if (ImGui::Button(maximized ? "\xe2\xa7\x89##max" : "\xe2\x96\xa1##max",
+                              ImVec2(btn_w, title_h))) {
+                if (maximized) glfwRestoreWindow(g_window);
+                else glfwMaximizeWindow(g_window);
+            }
+
+            // Close (red on hover)
+            ImGui::PopStyleColor(2);  // pop ButtonHovered, ButtonActive
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.973f, 0.318f, 0.286f, 0.5f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.973f, 0.318f, 0.286f, 0.8f));
+            ImGui::SetCursorScreenPos(ImVec2(btn_x + btn_w * 2, title_min.y));
+            if (ImGui::Button("\xc3\x97##close", ImVec2(btn_w, title_h))) {
+                glfwSetWindowShouldClose(g_window, GLFW_TRUE);
+            }
+            ImGui::PopStyleColor(4);
+            ImGui::PopStyleVar();
+
+            // Title bar drag-to-move (only in the non-button area)
+            ImGui::SetCursorScreenPos(title_min);
+            ImGui::InvisibleButton("##titlebar_drag", ImVec2(btn_x - title_min.x, title_h));
+            // Double-click to maximize/restore
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                if (maximized) glfwRestoreWindow(g_window);
+                else glfwMaximizeWindow(g_window);
+            }
+            // Drag to move — use screen-absolute mouse position to avoid trembling
+            static bool dragging = false;
+            static int drag_screen_start_x = 0, drag_screen_start_y = 0;
+            static int win_start_x = 0, win_start_y = 0;
+            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0)) {
+                // Compute screen-absolute cursor position
+                double local_cx, local_cy;
+                glfwGetCursorPos(g_window, &local_cx, &local_cy);
+                int wx, wy;
+                glfwGetWindowPos(g_window, &wx, &wy);
+                int screen_cx = wx + (int)local_cx;
+                int screen_cy = wy + (int)local_cy;
+
+                if (!dragging) {
+                    dragging = true;
+                    drag_screen_start_x = screen_cx;
+                    drag_screen_start_y = screen_cy;
+                    win_start_x = wx;
+                    win_start_y = wy;
+                    // Un-maximize on drag start
+                    if (maximized) {
+                        glfwRestoreWindow(g_window);
+                        int new_w, new_h;
+                        glfwGetWindowSize(g_window, &new_w, &new_h);
+                        win_start_x = screen_cx - new_w / 2;
+                        win_start_y = screen_cy - (int)(title_h * 0.5f);
+                        glfwSetWindowPos(g_window, win_start_x, win_start_y);
+                        drag_screen_start_x = screen_cx;
+                        drag_screen_start_y = screen_cy;
+                    }
+                }
+                glfwSetWindowPos(g_window,
+                                 win_start_x + (screen_cx - drag_screen_start_x),
+                                 win_start_y + (screen_cy - drag_screen_start_y));
+            } else {
+                dragging = false;
+            }
+
+            // Separator line below title bar
+            ImGui::GetWindowDrawList()->AddLine(
+                ImVec2(title_min.x, title_max.y),
+                ImVec2(title_max.x, title_max.y),
+                IM_COL32(48, 54, 61, 255));  // COL_BORDER #30363D
+
+            // --- REPL content below title bar ---
+            ImGui::SetCursorScreenPos(ImVec2(title_min.x + 8.0f, title_max.y + 4.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
+            rfui_repl_render();
+            ImGui::PopStyleVar();
+
+            ImGui::End();
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar(2);
+        }
+
+        // Render all widgets (each opens its own ImGui window / viewport)
         rfui_registry_render();
 
-        // Rendering
+        // Render
         ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(g_window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w,
-                     clear_color.z * clear_color.w, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        glfwSwapBuffers(g_window);
+        // Draw main window (skip GL draw if minimized)
+        if (!main_minimized) {
+            int display_w, display_h;
+            glfwGetFramebufferSize(g_window, &display_w, &display_h);
+            glViewport(0, 0, display_w, display_h);
+            glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w,
+                         clear_color.z * clear_color.w, clear_color.w);
+            glClear(GL_COLOR_BUFFER_BIT);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            glfwSwapBuffers(g_window);
+        }
+
+        // Multi-viewport: update and render platform windows (always, even if main minimized)
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            GLFWwindow* backup_ctx = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_ctx);
+        }
     }
 
     return 0;
@@ -374,6 +510,9 @@ nil_t rfui_ui_destroy(nil_t) {
     if (!g_initialized) {
         return;
     }
+
+    // Destroy REPL state
+    rfui_repl_destroy();
 
     // Destroy logo texture
     rfui_logo_destroy();

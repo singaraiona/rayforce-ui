@@ -18,7 +18,6 @@ extern "C" {
 #include "../include/rfui/grid_renderer.h"
 #include "../include/rfui/chart_renderer.h"
 #include "../include/rfui/text_renderer.h"
-#include "../include/rfui/repl_renderer.h"
 }
 
 // Global widget storage
@@ -43,9 +42,6 @@ nil_t rfui_registry_destroy(nil_t) {
         if (widget != nullptr) {
             // Free type-specific ui_state (must use delete for C++ objects)
             switch (widget->type) {
-                case RFUI_WIDGET_REPL:
-                    rfui_repl_free_state(widget);
-                    break;
                 case RFUI_WIDGET_TEXT:
                     // Text widget ui_state is a malloc'd char* (pre-formatted text)
                     if (widget->ui_state) {
@@ -78,21 +74,17 @@ nil_t rfui_registry_add(rfui_widget_t* widget) {
     g_widgets.push_back(widget);
 }
 
-nil_t rfui_registry_render(nil_t) {
-    for (rfui_widget_t* widget : g_widgets) {
-        if (widget == nullptr || !widget->is_open) {
-            continue;
-        }
+// Render widget (shared logic for both render paths)
+static void render_widget(rfui_widget_t* widget) {
+    if (widget == nullptr || !widget->is_open) {
+        return;
+    }
 
         // Set minimum size constraints for usability
         ImGui::SetNextWindowSizeConstraints(ImVec2(400, 300), ImVec2(FLT_MAX, FLT_MAX));
 
         // Set initial size on first appearance (only applies once)
-        if (widget->type == RFUI_WIDGET_REPL) {
-            ImGui::SetNextWindowSize(ImVec2(800, 500), ImGuiCond_FirstUseEver);
-        } else {
-            ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
-        }
+        ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
 
         // Build icon-prefixed window label
         char window_label[256];
@@ -101,18 +93,9 @@ nil_t rfui_registry_render(nil_t) {
             case RFUI_WIDGET_GRID:  icon = ICON_TABLE " ";      break;
             case RFUI_WIDGET_CHART: icon = ICON_CHART_LINE " "; break;
             case RFUI_WIDGET_TEXT:  icon = ICON_FILE_LINES " "; break;
-            case RFUI_WIDGET_REPL:  icon = ICON_TERMINAL " ";   break;
             default: break;
         }
         snprintf(window_label, sizeof(window_label), "%s%s", icon, widget->name);
-
-        // Make REPL semi-transparent so background logo shows through
-        bool repl_transparent = (widget->type == RFUI_WIDGET_REPL);
-        if (repl_transparent) {
-            ImVec4 bg = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
-            bg.w = 0.85f;
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, bg);
-        }
 
         // Begin widget window with close button
         ImGui::Begin(window_label, (bool*)&widget->is_open);
@@ -128,19 +111,17 @@ nil_t rfui_registry_render(nil_t) {
             case RFUI_WIDGET_TEXT:
                 rfui_render_text(widget);
                 break;
-            case RFUI_WIDGET_REPL:
-                rfui_render_repl(widget);
-                break;
             default:
                 ImGui::TextDisabled("Unknown widget type: %d", widget->type);
                 break;
         }
 
-        ImGui::End();
+    ImGui::End();
+}
 
-        if (repl_transparent) {
-            ImGui::PopStyleColor();
-        }
+nil_t rfui_registry_render(nil_t) {
+    for (rfui_widget_t* widget : g_widgets) {
+        render_widget(widget);
     }
 }
 

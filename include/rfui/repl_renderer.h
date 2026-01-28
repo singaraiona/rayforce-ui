@@ -2,20 +2,23 @@
 #ifndef RFUI_REPL_RENDERER_H
 #define RFUI_REPL_RENDERER_H
 
-#include "widget.h"
+#include "../../deps/rayforce/core/rayforce.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Render the REPL widget
-nil_t rfui_render_repl(rfui_widget_t* widget);
+// Initialize REPL state (call once at startup)
+nil_t rfui_repl_init(nil_t);
 
-// Add result text to REPL output
-nil_t rfui_repl_add_result(rfui_widget_t* widget, const char* text);
+// Render REPL content (call each frame, inside main window)
+nil_t rfui_repl_render(nil_t);
 
-// Free REPL-specific ui_state (must be called before widget_destroy for REPL widgets)
-nil_t rfui_repl_free_state(rfui_widget_t* widget);
+// Add result text to REPL output (called when MSG_RESULT received)
+nil_t rfui_repl_add_result_text(const char* text);
+
+// Destroy REPL state
+nil_t rfui_repl_destroy(nil_t);
 
 #ifdef __cplusplus
 }

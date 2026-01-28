@@ -160,9 +160,6 @@ static b8_t widget_type_from_symbol(i64_t sym_id, rfui_widget_type_t* out_type) 
     } else if (strcmp(type_str, "text") == 0) {
         *out_type = RFUI_WIDGET_TEXT;
         return B8_TRUE;
-    } else if (strcmp(type_str, "repl") == 0) {
-        *out_type = RFUI_WIDGET_REPL;
-        return B8_TRUE;
     }
     return B8_FALSE;
 }
@@ -212,7 +209,7 @@ static obj_p fn_widget(obj_p* x, i64_t n) {
     if (!widget_type_from_symbol(type_val->i64, &wtype)) {
         drop_obj(type_val);
         drop_obj(name_val);
-        return ray_err("widget: unknown type (expected 'grid, 'chart, 'text, or 'repl)");
+        return ray_err("widget: unknown type (expected 'grid, 'chart, or 'text)");
     }
     drop_obj(type_val);
 
@@ -457,15 +454,7 @@ void* rfui_rayforce_thread(void* arg) {
     // Step 8: Signal ready
     rfui_ctx_signal_ready(ctx);
 
-    // Step 9: Create default REPL widget
-    {
-        obj_p repl_result = eval_str("(set *repl* (widget {type: 'repl name: \"REPL\"}))");
-        if (repl_result) {
-            drop_obj(repl_result);
-        }
-    }
-
-    // Step 10: Run poll loop (blocks until exit)
+    // Step 9: Run poll loop (blocks until exit)
     runtime_run();
 
     // Cleanup

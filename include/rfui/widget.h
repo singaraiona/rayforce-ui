@@ -7,8 +7,7 @@
 typedef enum rfui_widget_type_t {
     RFUI_WIDGET_GRID,
     RFUI_WIDGET_CHART,
-    RFUI_WIDGET_TEXT,
-    RFUI_WIDGET_REPL
+    RFUI_WIDGET_TEXT
 } rfui_widget_type_t;
 
 typedef struct rfui_widget_t {

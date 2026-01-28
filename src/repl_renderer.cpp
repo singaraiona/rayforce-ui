@@ -1,5 +1,5 @@
 // src/repl_renderer.cpp
-// Terminal-style REPL widget renderer
+// Terminal-style REPL renderer — renders directly into the main window
 
 #include <stdio.h>
 #include <string.h>
@@ -17,9 +17,7 @@ static const int MAX_OUTPUT_LINES = 10000;
 
 extern "C" {
 #include "../include/rfui/repl_renderer.h"
-#include "../include/rfui/widget.h"
 #include "../include/rfui/rfui.h"
-#include "../include/rfui/logo.h"
 }
 
 // Line type for terminal display
@@ -43,6 +41,9 @@ struct repl_state_t {
     bool scroll_to_bottom;
     std::string saved_input;
 };
+
+// Module-level REPL state (singleton — one REPL per application)
+static repl_state_t* g_repl = nullptr;
 
 // Standard ANSI 8-color palette
 static const ImVec4 ansi_colors[8] = {
@@ -231,19 +232,19 @@ static int input_callback(ImGuiInputTextCallbackData* data) {
 
 extern "C" {
 
-nil_t rfui_render_repl(rfui_widget_t* widget) {
-    if (widget == nullptr) return;
+nil_t rfui_repl_init(nil_t) {
+    if (g_repl) return;  // Already initialized
 
-    // Initialize state
-    if (widget->ui_state == nullptr) {
-        repl_state_t* state = new repl_state_t();
-        state->input_buf[0] = '\0';
-        state->history_pos = -1;
-        state->scroll_to_bottom = true;
-        widget->ui_state = state;
-    }
+    g_repl = new repl_state_t();
+    g_repl->input_buf[0] = '\0';
+    g_repl->history_pos = -1;
+    g_repl->scroll_to_bottom = true;
+}
 
-    repl_state_t* state = (repl_state_t*)widget->ui_state;
+nil_t rfui_repl_render(nil_t) {
+    if (!g_repl) return;
+
+    repl_state_t* state = g_repl;
 
     // Colors (matched to theme palette)
     ImVec4 prompt_color(0.247f, 0.725f, 0.314f, 1.0f);  // #3FB950
@@ -253,28 +254,6 @@ nil_t rfui_render_repl(rfui_widget_t* widget) {
     // Single scrollable region for entire terminal
     ImGui::BeginChild("##terminal", ImVec2(0, 0), false,
                       ImGuiWindowFlags_HorizontalScrollbar);
-
-    // Show centered logo watermark when REPL is empty
-    if (state->lines.empty()) {
-        unsigned int tex = rfui_logo_texture();
-        if (tex) {
-            int lw, lh;
-            rfui_logo_size(&lw, &lh);
-            ImVec2 avail = ImGui::GetContentRegionAvail();
-            float target_w = avail.x * 0.35f;
-            float scale = target_w / (float)lw;
-            float w = (float)lw * scale;
-            float h = (float)lh * scale;
-            ImVec2 cursor = ImGui::GetCursorScreenPos();
-            float cx = cursor.x + avail.x * 0.5f;
-            float cy = cursor.y + avail.y * 0.4f;
-            ImVec2 p0(cx - w * 0.5f, cy - h * 0.5f);
-            ImVec2 p1(cx + w * 0.5f, cy + h * 0.5f);
-            ImGui::GetWindowDrawList()->AddImage(
-                (ImTextureID)(intptr_t)tex, p0, p1,
-                ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 25));
-        }
-    }
 
     // Display all previous lines (with ANSI escape sequence support)
     for (const terminal_line_t& line : state->lines) {
@@ -362,11 +341,8 @@ nil_t rfui_render_repl(rfui_widget_t* widget) {
     ImGui::EndChild();
 }
 
-nil_t rfui_repl_add_result(rfui_widget_t* widget, const char* text) {
-    if (widget == nullptr || text == nullptr) return;
-
-    repl_state_t* state = (repl_state_t*)widget->ui_state;
-    if (state == nullptr) return;
+nil_t rfui_repl_add_result_text(const char* text) {
+    if (!g_repl || !text) return;
 
     // Determine if error (starts with "!" or "error")
     LineType type = LINE_RESULT;
@@ -374,19 +350,18 @@ nil_t rfui_repl_add_result(rfui_widget_t* widget, const char* text) {
         type = LINE_ERROR;
     }
 
-    if ((int)state->lines.size() >= MAX_OUTPUT_LINES) {
-        state->lines.erase(state->lines.begin());
+    if ((int)g_repl->lines.size() >= MAX_OUTPUT_LINES) {
+        g_repl->lines.erase(g_repl->lines.begin());
     }
-    state->lines.push_back({std::string(text), type});
-    state->scroll_to_bottom = true;
+    g_repl->lines.push_back({std::string(text), type});
+    g_repl->scroll_to_bottom = true;
 }
 
-nil_t rfui_repl_free_state(rfui_widget_t* widget) {
-    if (widget == nullptr || widget->ui_state == nullptr) return;
+nil_t rfui_repl_destroy(nil_t) {
+    if (!g_repl) return;
 
-    repl_state_t* state = (repl_state_t*)widget->ui_state;
-    delete state;
-    widget->ui_state = nullptr;
+    delete g_repl;
+    g_repl = nullptr;
 }
 
 } // extern "C"
