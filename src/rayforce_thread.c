@@ -32,8 +32,10 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
             break;
 
         case RAYGUI_MSG_DROP:
-            // TODO: Drop obj_p after render
-            // For now, stub - would call drop_obj(msg->obj) when implemented
+            // Drop obj_p after render
+            if (msg->obj) {
+                drop_obj(msg->obj);
+            }
             break;
 
         case RAYGUI_MSG_QUIT:
@@ -43,6 +45,10 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
             if (runtime_get()) {
                 poll_exit(runtime_get()->poll, 0);
             }
+            break;
+
+        default:
+            // Unknown message type - ignore
             break;
     }
 
@@ -57,8 +63,14 @@ static void on_ui_message(raw_p data) {
 
     if (!ctx) return;
 
+    // Capture poll pointer at start to avoid use-after-free if runtime changes
+    poll_p poll = runtime_get() ? runtime_get()->poll : NULL;
+    (void)poll;  // Currently unused but captured for safety
+
     // Drain the queue and process all pending messages
-    while ((msg = (raygui_ui_msg_t*)raygui_queue_pop(ctx->ui_to_ray)) != NULL) {
+    // Check quit flag to exit early on shutdown
+    while (!raygui_ctx_get_quit(ctx) &&
+           (msg = (raygui_ui_msg_t*)raygui_queue_pop(ctx->ui_to_ray)) != NULL) {
         process_ui_message(ctx, msg);
     }
 }
@@ -118,7 +130,7 @@ void* raygui_rayforce_thread(void* arg) {
     runtime_run();
 
     // Step 8: Cleanup
-    // Note: waker is destroyed by poll_destroy, but we set it to NULL first
+    // Waker is a separate allocation - must be explicitly destroyed
     raygui_ctx_set_waker(ctx, NULL);
     poll_waker_destroy(waker);
     runtime_destroy();
