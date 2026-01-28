@@ -34,7 +34,12 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
             break;
 
         case RAYGUI_MSG_SET_POST_QUERY:
-            if (msg->widget && msg->expr) {
+            if (!msg->widget) {
+                // Null widget - nothing to do
+                if (msg->expr) free(msg->expr);
+                break;
+            }
+            if (msg->expr) {
                 // Parse the expression string into an obj_p
                 obj_p query = parse_str(msg->expr);
                 if (query && !IS_ERR(query)) {
@@ -47,8 +52,6 @@ static void process_ui_message(raygui_ctx_t* ctx, raygui_ui_msg_t* msg) {
                     // Parse failed - drop the error result if any
                     if (query) drop_obj(query);
                 }
-            }
-            if (msg->expr) {
                 free(msg->expr);
             }
             break;
@@ -245,17 +248,32 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
     }
 
     // Apply post_query transformation if widget has one
+    // The post_query is a lambda/function that takes data as argument.
+    // We build a call expression (post_query data) and evaluate it.
     obj_p final_data;
     if (w->post_query) {
-        // Clone the post_query for evaluation (try_obj may consume it)
+        // Clone the post_query and data for the call expression
         obj_p query_clone = clone_obj(w->post_query);
         if (!query_clone) {
             return ray_err("draw: failed to clone post_query");
         }
+        obj_p data_clone = clone_obj(data);
+        if (!data_clone) {
+            drop_obj(query_clone);
+            return ray_err("draw: failed to clone data for post_query");
+        }
 
-        // Apply the query to the data: (query data)
-        // try_obj evaluates query with data as the argument
-        obj_p result = try_obj(query_clone, data);
+        // Build call expression: (post_query data)
+        // vn_list creates a 2-element list that, when evaluated, calls the function
+        obj_p call_expr = vn_list(2, query_clone, data_clone);
+        if (!call_expr) {
+            drop_obj(query_clone);
+            drop_obj(data_clone);
+            return ray_err("draw: failed to build call expression");
+        }
+
+        // eval_obj consumes the call expression and returns the result
+        obj_p result = eval_obj(call_expr);
         if (result && !IS_ERR(result)) {
             final_data = result;
         } else {
