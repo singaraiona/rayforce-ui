@@ -1,5 +1,11 @@
 // src/text_renderer.cpp
 // Text widget renderer for displaying formatted Rayforce object output
+//
+// NOTE: All Rayforce obj_p formatting is done on the Rayforce thread
+// (in fn_draw) before sending to the UI. The text renderer only displays
+// the pre-formatted string stored in widget->ui_state. This avoids calling
+// Rayforce runtime functions (obj_fmt, drop_obj) from the UI thread, which
+// has no Rayforce runtime context (__VM is NULL on the UI thread).
 
 #include <stdio.h>
 #include <string.h>
@@ -12,7 +18,6 @@
 extern "C" {
 #include "../include/raygui/text_renderer.h"
 #include "../include/raygui/widget.h"
-#include "../deps/rayforce/core/format.h"
 }
 
 extern "C" {
@@ -22,39 +27,21 @@ nil_t raygui_render_text(raygui_widget_t* widget) {
         return;
     }
 
-    obj_p data = widget->render_data;
+    // ui_state holds pre-formatted text string (set by UI DRAW handler)
+    const char* text = (const char*)widget->ui_state;
 
-    // Check if we have data
-    if (data == nullptr) {
+    if (text == nullptr) {
         ImGui::TextDisabled("No data");
         return;
     }
 
-    // Format the object to a string representation
-    // B8_TRUE = full format with limits (readable multiline output)
-    obj_p fmt = obj_fmt(data, B8_TRUE);
-
-    if (fmt == nullptr || fmt->type != TYPE_C8) {
-        ImGui::TextDisabled("Failed to format data");
-        if (fmt != nullptr) {
-            drop_obj(fmt);
-        }
-        return;
-    }
-
     // Display in a scrollable child region for large output
-    // ImGuiWindowFlags_HorizontalScrollbar for wide content
     ImGui::BeginChild("##textcontent", ImVec2(0, 0), false,
                       ImGuiWindowFlags_HorizontalScrollbar);
 
-    // Use TextUnformatted for efficiency with potentially large strings
-    // AS_C8(fmt) returns the char* data, fmt->len is the length
-    ImGui::TextUnformatted(AS_C8(fmt), AS_C8(fmt) + fmt->len);
+    ImGui::TextUnformatted(text);
 
     ImGui::EndChild();
-
-    // Clean up formatted string
-    drop_obj(fmt);
 }
 
 } // extern "C"

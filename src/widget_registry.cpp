@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <stdio.h>
+#include <stdlib.h>
 #include <cfloat>  // FLT_MAX
 
 #include "imgui.h"
@@ -43,6 +44,13 @@ nil_t raygui_registry_destroy(nil_t) {
             switch (widget->type) {
                 case RAYGUI_WIDGET_REPL:
                     raygui_repl_free_state(widget);
+                    break;
+                case RAYGUI_WIDGET_TEXT:
+                    // Text widget ui_state is a malloc'd char* (pre-formatted text)
+                    if (widget->ui_state) {
+                        free(widget->ui_state);
+                        widget->ui_state = nullptr;
+                    }
                     break;
                 default:
                     // Other widget types use plain malloc/free for ui_state

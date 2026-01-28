@@ -202,7 +202,6 @@ nil_t raygui_render_grid(raygui_widget_t* widget) {
     if (widget == nullptr) {
         return;
     }
-
     obj_p table = widget->render_data;
 
     // Check if we have valid table data

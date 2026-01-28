@@ -343,8 +343,25 @@ static obj_p fn_draw(obj_p* x, i64_t n) {
     }
     msg->type = RAYGUI_MSG_DRAW;
     msg->widget = w;
-    msg->data = final_data;
     msg->text = NULL;
+
+    // For text widgets, pre-format on Rayforce thread (UI thread has no runtime)
+    if (w->type == RAYGUI_WIDGET_TEXT) {
+        obj_p fmt = obj_fmt(final_data, B8_TRUE);
+        if (fmt && fmt->type == TYPE_C8) {
+            msg->text = (char*)malloc(fmt->len + 1);
+            if (msg->text) {
+                memcpy(msg->text, AS_C8(fmt), fmt->len);
+                msg->text[fmt->len] = '\0';
+            }
+            drop_obj(fmt);
+        }
+        // Drop the obj_p data here since text widget uses pre-formatted string
+        drop_obj(final_data);
+        msg->data = NULL;
+    } else {
+        msg->data = final_data;
+    }
 
     raygui_queue_push(g_ctx->ray_to_ui, msg);
     glfwPostEmptyEvent();  // Wake UI thread

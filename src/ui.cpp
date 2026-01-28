@@ -223,6 +223,14 @@ i32_t raygui_ui_run(nil_t) {
                     case RAYGUI_MSG_DRAW:
                         // Update widget render_data and queue old data for drop
                         if (msg->widget) {
+                            // For text widgets, store pre-formatted string in ui_state
+                            if (msg->widget->type == RAYGUI_WIDGET_TEXT && msg->text) {
+                                if (msg->widget->ui_state) {
+                                    free(msg->widget->ui_state);
+                                }
+                                msg->widget->ui_state = msg->text;
+                                msg->text = nullptr;
+                            }
                             obj_p old_data = raygui_registry_update_data(msg->widget, msg->data);
                             // Queue old data for drop in Rayforce thread (if not NULL)
                             if (old_data) {
@@ -232,27 +240,17 @@ i32_t raygui_ui_run(nil_t) {
                                     drop_msg->obj = old_data;
                                     drop_msg->widget = nullptr;
                                     drop_msg->expr = nullptr;
-                                    if (raygui_queue_push(g_ctx->ui_to_ray, drop_msg) != 0) {
-                                        // Queue push failed - fall back to direct drop
-                                        // NOTE: This is not ideal as drop_obj should run on
-                                        // Rayforce thread, but leaking is worse. At shutdown
-                                        // this is acceptable; during normal operation it's
-                                        // a rare edge case (queue full).
-                                        drop_obj(old_data);
+                                    if (!raygui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
+                                        // Queue full - leak rather than crash
+                                        // (drop_obj requires Rayforce thread runtime)
                                         free(drop_msg);
                                     } else {
-                                        // Wake Rayforce to process the drop
                                         poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
                                         if (waker) poll_waker_wake(waker);
                                     }
                                 } else {
-                                    // Malloc failed - fall back to direct drop_obj
-                                    // NOTE: This is a fallback for extremely rare malloc
-                                    // failure. Direct drop_obj from UI thread is not ideal
-                                    // but acceptable at shutdown; during normal operation
-                                    // this may cause thread safety issues, but malloc failure
-                                    // is extremely rare, making this an acceptable tradeoff.
-                                    drop_obj(old_data);
+                                    // Malloc failed - leak (drop_obj requires Rayforce thread)
+                                    (void)old_data;
                                 }
                             }
                         } else if (msg->data) {
@@ -263,17 +261,18 @@ i32_t raygui_ui_run(nil_t) {
                                 drop_msg->obj = msg->data;
                                 drop_msg->widget = nullptr;
                                 drop_msg->expr = nullptr;
-                                if (raygui_queue_push(g_ctx->ui_to_ray, drop_msg) != 0) {
+                                if (!raygui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
                                     // Queue push failed - fall back to direct drop
-                                    drop_obj(msg->data);
+                                    // Leak (drop_obj requires Rayforce thread)
+                                        (void)msg->data;
                                     free(drop_msg);
                                 } else {
                                     poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
                                     if (waker) poll_waker_wake(waker);
                                 }
                             } else {
-                                // Malloc failed - fall back to direct drop_obj
-                                drop_obj(msg->data);
+                                // Malloc failed - leak (drop_obj requires Rayforce thread)
+                                (void)msg->data;
                             }
                         }
                         break;
@@ -293,17 +292,18 @@ i32_t raygui_ui_run(nil_t) {
                                 drop_msg->obj = msg->data;
                                 drop_msg->widget = nullptr;
                                 drop_msg->expr = nullptr;
-                                if (raygui_queue_push(g_ctx->ui_to_ray, drop_msg) != 0) {
+                                if (!raygui_queue_push(g_ctx->ui_to_ray, drop_msg)) {
                                     // Queue push failed - fall back to direct drop
-                                    drop_obj(msg->data);
+                                    // Leak (drop_obj requires Rayforce thread)
+                                        (void)msg->data;
                                     free(drop_msg);
                                 } else {
                                     poll_waker_p waker = raygui_ctx_get_waker(g_ctx);
                                     if (waker) poll_waker_wake(waker);
                                 }
                             } else {
-                                // Malloc failed - fall back to direct drop_obj
-                                drop_obj(msg->data);
+                                // Malloc failed - leak (drop_obj requires Rayforce thread)
+                                (void)msg->data;
                             }
                         }
                         break;
