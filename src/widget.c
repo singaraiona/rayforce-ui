@@ -7,6 +7,9 @@
 // strdup is POSIX, not C standard - provide explicit declaration
 extern char* strdup(const char* s);
 
+// Buffer size for widget formatting
+#define WIDGET_FORMAT_BUF_SIZE 256
+
 const char* raygui_widget_type_name(raygui_widget_type_t type) {
     switch (type) {
         case RAYGUI_WIDGET_GRID:  return "grid";
@@ -18,11 +21,18 @@ const char* raygui_widget_type_name(raygui_widget_type_t type) {
 }
 
 raygui_widget_t* raygui_widget_create(raygui_widget_type_t type, const char* name) {
+    if (!name) return NULL;
+
     raygui_widget_t* w = malloc(sizeof(raygui_widget_t));
     if (!w) return NULL;
 
-    w->type = type;
     w->name = strdup(name);
+    if (!w->name) {
+        free(w);
+        return NULL;
+    }
+
+    w->type = type;
     w->data = NULL;
     w->post_query = NULL;
     w->on_select = NULL;
@@ -42,12 +52,17 @@ nil_t raygui_widget_destroy(raygui_widget_t* w) {
     if (w->post_query) drop_obj(w->post_query);
     if (w->on_select) drop_obj(w->on_select);
     if (w->render_data) drop_obj(w->render_data);
+    free(w->ui_state);
     free(w);
 }
 
 char* raygui_widget_format(raygui_widget_t* w) {
-    char* buf = malloc(256);
-    snprintf(buf, 256, "widget<%s:\"%s\">",
+    if (!w) return NULL;
+
+    char* buf = malloc(WIDGET_FORMAT_BUF_SIZE);
+    if (!buf) return NULL;
+
+    snprintf(buf, WIDGET_FORMAT_BUF_SIZE, "widget<%s:\"%s\">",
              raygui_widget_type_name(w->type), w->name);
     return buf;
 }
