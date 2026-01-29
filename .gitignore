@@ -5,8 +5,8 @@
 *.dylib
 /rayforce-ui
 
-# Dependencies (vendored, not tracked)
-/deps/
+# Dependencies
+/deps/rayforce/
 
 # Editor files
 *.swp

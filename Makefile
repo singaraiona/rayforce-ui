@@ -213,7 +213,10 @@ $(GLFW_DIR)/src/%.o: $(GLFW_DIR)/src/%.c
 
 # Fetch dependencies
 deps:
-	./deps/fetch_deps.sh
+	@if [ ! -d "$(RAYFORCE_DIR)" ]; then \
+		echo "Cloning Rayforce..."; \
+		git clone --depth 1 https://github.com/RayforceDB/rayforce.git $(RAYFORCE_DIR); \
+	fi
 
 clean:
 	rm -f $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(TARGET)
