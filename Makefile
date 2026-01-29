@@ -117,7 +117,7 @@ GLFW_DEFINES = -D_GLFW_WIN32
 GLFW_LIBS =
 
 CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -Wall -Wextra -std=$(STD) -g -O0 -D_CRT_SECURE_NO_WARNINGS -DDEBUG
-LIBS = -fuse-ld=lld -lws2_32 -lmswsock -lkernel32 -lopengl32 -lgdi32 -luser32 -lshell32
+LIBS = -fuse-ld=lld -lws2_32 -lmswsock -lkernel32 -lopengl32 -lgdi32 -luser32 -lshell32 -ldbghelp
 TARGET = rayforce-ui.exe
 endif
 
@@ -182,7 +182,7 @@ rayforce_lib:
 
 # Use C++ linker since we have C++ objects
 $(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ)
-	$(CXX) -nostdlib++ -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
+	$(CXX) -nostdlib++ -Wl,/map:$@.map -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
 
 # C source compilation for rayforce-ui
 src/%.o: src/%.c

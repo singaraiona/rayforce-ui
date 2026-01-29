@@ -392,14 +392,6 @@ static void register_rfui_functions(void) {
     RFUI_REGISTER_FN(functions, "draw", TYPE_VARY, FN_NONE, fn_draw);
 }
 
-// Stubs for terminal/repl functions referenced by rayforce poll but not used in GUI mode
-term_p term_create() { return NULL; }
-nil_t term_destroy(term_p term) { (void)term; }
-i64_t term_getc(term_p term) { (void)term; return -1; }
-obj_p term_read(term_p term) { (void)term; return NULL; }
-nil_t term_prompt(term_p term) { (void)term; }
-nil_t repl_destroy(repl_p repl) { (void)repl; }
-
 void* rfui_rayforce_thread(void* arg) {
     rfui_ctx_t* ctx = (rfui_ctx_t*)arg;
     runtime_p runtime;

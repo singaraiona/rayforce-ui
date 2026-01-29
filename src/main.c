@@ -10,6 +10,35 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <dbghelp.h>
+static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ep) {
+    fprintf(stderr, "CRASH at address: 0x%p, code: 0x%lx\n",
+            ep->ExceptionRecord->ExceptionAddress,
+            ep->ExceptionRecord->ExceptionCode);
+    fprintf(stderr, "crash_handler at: %p\n", (raw_p)crash_handler);
+    void* stack[32];
+    HANDLE process = GetCurrentProcess();
+    SymInitialize(process, NULL, TRUE);
+    WORD frames = CaptureStackBackTrace(0, 32, stack, NULL);
+    for (WORD i = 0; i < frames; i++) {
+        DWORD64 addr = (DWORD64)stack[i];
+        char buf[sizeof(SYMBOL_INFO) + 256];
+        SYMBOL_INFO* sym = (SYMBOL_INFO*)buf;
+        sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+        sym->MaxNameLen = 255;
+        DWORD64 disp = 0;
+        if (SymFromAddr(process, addr, &disp, sym))
+            fprintf(stderr, "  [%d] %s + 0x%llx\n", i, sym->Name, (unsigned long long)disp);
+        else
+            fprintf(stderr, "  [%d] 0x%p\n", i, stack[i]);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
 
 // Helper to duplicate string (portable version of strdup)
 static char* rfui_strdup(const char* s) {
@@ -151,6 +180,9 @@ nil_t rfui_destroy(nil_t) {
 }
 
 i32_t main(i32_t argc, str_p argv[]) {
+#ifdef _WIN32
+    SetUnhandledExceptionFilter(crash_handler);
+#endif
     printf("rayforce-ui v%d.%d\n", RFUI_VERSION_MAJOR, RFUI_VERSION_MINOR);
 
     if (rfui_init(argc, argv) != 0) {
