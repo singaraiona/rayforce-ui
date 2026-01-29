@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 # Rayforce (core dependency - fetched on fresh build)
 if [ ! -d "rayforce" ]; then
     echo "Cloning Rayforce..."
-    git clone --depth 1 git@github.com:RayforceDB/rayforce.git
+    git clone --depth 1 https://github.com/RayforceDB/rayforce.git
 else
     echo "Updating Rayforce..."
     git -C rayforce pull

@@ -11,8 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install dependencies
         run: |
@@ -27,3 +25,28 @@ jobs:
 
       - name: Build (release)
         run: make clean && make release -j$(nproc)
+
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-llvm
+            make
+            git
+
+      - uses: actions/checkout@v4
+
+      - name: Fetch deps
+        run: make deps
+
+      - name: Build (debug)
+        run: make -j$(nproc)
