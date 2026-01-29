@@ -24,11 +24,18 @@ jobs:
       - name: Build
         run: make release -j$(nproc)
 
+      - name: Package
+        run: |
+          mkdir -p dist/rayforce-ui
+          cp rayforce-ui dist/rayforce-ui/
+          cp -r examples assets dist/rayforce-ui/
+          cd dist && tar czf rayforce-ui-linux-x64.tar.gz rayforce-ui
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: rayforce-ui-linux-x64
-          path: rayforce-ui
+          path: dist/rayforce-ui-linux-x64.tar.gz
 
   build-windows:
     runs-on: windows-latest
@@ -46,6 +53,7 @@ jobs:
             mingw-w64-clang-x86_64-llvm
             make
             git
+            zip
 
       - uses: actions/checkout@v4
 
@@ -55,11 +63,18 @@ jobs:
       - name: Build
         run: make release -j$(nproc)
 
+      - name: Package
+        run: |
+          mkdir -p dist/rayforce-ui
+          cp rayforce-ui.exe dist/rayforce-ui/
+          cp -r examples assets dist/rayforce-ui/
+          cd dist && zip -r rayforce-ui-windows-x64.zip rayforce-ui
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: rayforce-ui-windows-x64
-          path: rayforce-ui.exe
+          path: dist/rayforce-ui-windows-x64.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -75,5 +90,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            rayforce-ui-linux-x64/rayforce-ui
-            rayforce-ui-windows-x64/rayforce-ui.exe
+            rayforce-ui-linux-x64/rayforce-ui-linux-x64.tar.gz
+            rayforce-ui-windows-x64/rayforce-ui-windows-x64.zip
