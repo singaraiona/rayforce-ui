@@ -181,8 +181,13 @@ rayforce_lib:
 	$(MAKE) -C $(RAYFORCE_DIR) lib-debug
 
 # Use C++ linker since we have C++ objects
+ifneq (,$(IS_WINDOWS))
 $(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ)
 	$(CXX) -nostdlib++ -Wl,/map:$@.map -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
+else
+$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ)
+	$(CXX) -nostdlib++ -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
+endif
 
 # C source compilation for rayforce-ui
 src/%.o: src/%.c
