@@ -4,31 +4,31 @@
 (timer 700 1000000000 (fn [x] (insert 'trades (list (at [AAPL IBM MSFT BABA GOOG AMZN] (first (rand 1 5))) (time 'utc) (first (rand 1 1000))))))
 
 ;; Trades grid — last 100 trades
-;;(set t (widget {type: 'grid name: "Trades"}))
+(set t (widget {type: 'grid name: "Trades"}))
 
 ;; Quotes grid — last 100 quotes
-;;(set q (widget {type: 'grid name: "Quotes"}))
+(set q (widget {type: 'grid name: "Quotes"}))
 
 ;; Trades Summary
-;;(set ts (widget {type: 'text name: "Trades Count"}))
+(set ts (widget {type: 'text name: "Trades Count"}))
 
 ;; Quotes Summary
-;;(set qs (widget {type: 'text name: "Quotes Count"}))
+(set qs (widget {type: 'text name: "Quotes Count"}))
 
 ;; Candlestick chart — OHLC bars from last 500 trades, 10 trades per bar
-;;(set pc (widget {type: 'chart name: "Price Chart"}))
+(set pc (widget {type: 'chart name: "Price Chart"}))
 
 ;; Single timer drives all widget updates
 ;; Batch query: quotes, trades, counts, and OHLC candles via xbar
-;;(timer 100 10000000 (fn [x]
-;;  (let r
-;;    (list (take quotes -100)
-;;          (take trades -100)
-;;          (count trades)
-;;          (count quotes)
-;;          (select {from: (take trades -500) by: (xbar Ts 1000) open: (first Price) high: (max Price) low: (min Price) close: (last Price)})))
-;;  (draw q  (at r 0))
-;;  (draw t  (at r 1))
- ;; (draw ts (at r 2))
- ;; (draw qs (at r 3))
- ;; (draw pc (at r 4))))
+(timer 100 10000000 (fn [x]
+  (let r
+    (list (take quotes -100)
+          (take trades -100)
+          (count trades)
+          (count quotes)
+          (select {from: (take trades -500) by: (xbar Ts 1000) open: (first Price) high: (max Price) low: (min Price) close: (last Price)})))
+  (draw q  (at r 0))
+  (draw t  (at r 1))
+  (draw ts (at r 2))
+  (draw qs (at r 3))
+  (draw pc (at r 4))))
