@@ -161,7 +161,7 @@ ifeq (,$(IS_WINDOWS))
 TARGET = rayforce-ui
 endif
 
-default: rayforce_lib $(TARGET)
+default: $(TARGET)
 
 ifneq (,$(IS_WINDOWS))
 release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -Wall -Wextra -std=$(STD) -O3 -DNDEBUG -D_CRT_SECURE_NO_WARNINGS
@@ -172,21 +172,23 @@ release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$
 release: CXXFLAGS = -std=c++11 $(GCC_CXX_INCLUDES) $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -O3 -DNDEBUG
 release: GLFW_CFLAGS = -fPIC -Wall -std=c99 -O3 -D_GNU_SOURCE $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
 endif
-release: rayforce_lib_release $(TARGET)
+release: RAYFORCE_MAKE_TARGET = lib
+release: $(TARGET)
 
-rayforce_lib_release:
-	$(MAKE) -C $(RAYFORCE_DIR) lib
+# Default to debug build of rayforce
+RAYFORCE_MAKE_TARGET ?= lib-debug
 
-rayforce_lib:
-	$(MAKE) -C $(RAYFORCE_DIR) lib-debug
+# Build rayforce lib (always delegates to submake)
+$(RAYFORCE_LIB):
+	$(MAKE) -C $(RAYFORCE_DIR) $(RAYFORCE_MAKE_TARGET)
 
 # Use C++ linker since we have C++ objects
 ifneq (,$(IS_WINDOWS))
-$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ)
-	$(CXX) -nostdlib++ -Wl,/map:$@.map -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
+$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
+	$(CXX) -nostdlib++ -Wl,/map:$@.map -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
 else
-$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ)
-	$(CXX) -nostdlib++ -o $@ $^ $(RAYFORCE_LIB) $(LIBS)
+$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
+	$(CXX) -nostdlib++ -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
 endif
 
 # C source compilation for rayforce-ui
@@ -222,4 +224,4 @@ clean:
 	rm -f $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(TARGET)
 	$(MAKE) -C $(RAYFORCE_DIR) clean
 
-.PHONY: default release clean rayforce_lib rayforce_lib_release deps
+.PHONY: default release clean deps

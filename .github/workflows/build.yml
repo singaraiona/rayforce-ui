@@ -20,11 +20,8 @@ jobs:
       - name: Fetch deps
         run: make deps
 
-      - name: Build (debug)
-        run: make -j$(nproc)
-
-      - name: Build (release)
-        run: make clean && make release -j$(nproc)
+      - name: Build
+        run: make release -j$(nproc)
 
   build-windows:
     runs-on: windows-latest
@@ -48,5 +45,5 @@ jobs:
       - name: Fetch deps
         run: make deps
 
-      - name: Build (debug)
-        run: make -j$(nproc)
+      - name: Build
+        run: make release -j$(nproc)
