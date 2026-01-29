@@ -23,6 +23,7 @@
 #include "../include/rfui/theme.h"
 #include "../include/rfui/logo.h"
 #include "../include/rfui/icons.h"
+#include "../include/rfui/version.h"
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -379,7 +380,7 @@ i32_t rfui_ui_run(nil_t) {
             ImGui::SetCursorScreenPos(ImVec2(title_min.x + 12.0f,
                                               title_min.y + (title_h - ImGui::GetFontSize()) * 0.5f));
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.545f, 0.580f, 0.620f, 1.0f));
-            ImGui::TextUnformatted("\xe2\x9a\xa1 Rayforce");
+            ImGui::TextUnformatted("\xe2\x9a\xa1 Rayforce v" RFUI_VERSION);
             ImGui::PopStyleColor();
 
             // Open script button (right side, before window controls)

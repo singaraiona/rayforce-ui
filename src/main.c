@@ -183,7 +183,7 @@ i32_t main(i32_t argc, str_p argv[]) {
 #if defined(_WIN32) && defined(DEBUG)
     SetUnhandledExceptionFilter(crash_handler);
 #endif
-    printf("rayforce-ui v%d.%d\n", RFUI_VERSION_MAJOR, RFUI_VERSION_MINOR);
+    printf("rayforce-ui v" RFUI_VERSION "\n");
 
     if (rfui_init(argc, argv) != 0) {
         return -1;

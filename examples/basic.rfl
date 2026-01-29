@@ -1,7 +1,7 @@
 (set trades (table [Sym Ts Price] (list (as 'SYMBOL []) (as 'TIME []) [])))
 (set quotes (table [Sym Ts Bid Ask] (list (as 'SYMBOL []) (as 'TIME []) [] [])))
-(timer 500 1000000000 (fn [x] (insert 'quotes (list (at [AAPL IBM MSFT BABA GOOG AMZN] (first (rand 1 5))) (time 'utc) (first (rand 1 1000)) (first (rand 1 1000))))))
-(timer 700 1000000000 (fn [x] (insert 'trades (list (at [AAPL IBM MSFT BABA GOOG AMZN] (first (rand 1 5))) (time 'utc) (first (rand 1 1000))))))
+(timer 10 1000000000 (fn [x] (insert 'quotes (list (at [AAPL IBM MSFT BABA GOOG AMZN] (first (rand 1 5))) (time 'utc) (first (rand 1 1000)) (first (rand 1 1000))))))
+(timer 20 1000000000 (fn [x] (insert 'trades (list (at [AAPL IBM MSFT BABA GOOG AMZN] (first (rand 1 5))) (time 'utc) (first (rand 1 1000))))))
 
 ;; Trades grid — last 100 trades
 (set t (widget {type: 'grid name: "Trades"}))

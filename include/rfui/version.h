@@ -1,0 +1,13 @@
+// include/rfui/version.h
+#ifndef RFUI_VERSION_H
+#define RFUI_VERSION_H
+
+#define RFUI_VERSION_MAJOR 0
+#define RFUI_VERSION_MINOR 1
+#define RFUI_VERSION_PATCH 0
+
+#define RFUI_STR_(x) #x
+#define RFUI_STR(x)  RFUI_STR_(x)
+#define RFUI_VERSION  RFUI_STR(RFUI_VERSION_MAJOR) "." RFUI_STR(RFUI_VERSION_MINOR) "." RFUI_STR(RFUI_VERSION_PATCH)
+
+#endif

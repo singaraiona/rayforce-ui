@@ -11,8 +11,7 @@ extern "C" {
 #endif
 
 // Version
-#define RFUI_VERSION_MAJOR 0
-#define RFUI_VERSION_MINOR 1
+#include "version.h"
 
 // Initialize rayforce-ui (call from main thread before starting rayforce thread)
 i32_t rfui_init(i32_t argc, str_p argv[]);

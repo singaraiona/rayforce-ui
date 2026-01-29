@@ -10,7 +10,10 @@
       "mcp__computer-control__type_text",
       "mcp__computer-control__press_keys",
       "Bash(*)",
-      "Skill(commit-commands:commit)"
+      "Skill(commit-commands:commit)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_resize"
     ]
   },
   "enableAllProjectMcpServers": true,
