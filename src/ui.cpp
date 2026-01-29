@@ -168,11 +168,11 @@ i32_t rfui_ui_init(nil_t) {
     // Apply dashboard theme (replaces StyleColorsDark)
     rfui_theme_apply();
 
-    // Load JetBrains Mono font at proper size for HiDPI
+    // Load Iosevka Bold as primary font
     float font_size = 20.0f * dpi_scale;
-    io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", font_size);
+    io.Fonts->AddFontFromFileTTF("assets/fonts/Iosevka-Bold.ttf", font_size);
 
-    // Merge FontAwesome icons into the regular font
+    // Merge FontAwesome icons into the primary font
     static const ImWchar icon_ranges[] = { 0xf000, 0xf8ff, 0 };
     ImFontConfig icon_cfg;
     icon_cfg.MergeMode = true;
@@ -182,7 +182,7 @@ i32_t rfui_ui_init(nil_t) {
 
     // Large font for text/label widgets (index 1)
     float large_font_size = 48.0f * dpi_scale;
-    io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", large_font_size);
+    io.Fonts->AddFontFromFileTTF("assets/fonts/Iosevka-Bold.ttf", large_font_size);
 
     // Scale style for HiDPI (but not fonts - they're already sized correctly)
     ImGui::GetStyle().ScaleAllSizes(dpi_scale);
@@ -373,7 +373,7 @@ i32_t rfui_ui_run(nil_t) {
             ImGui::SetCursorScreenPos(ImVec2(title_min.x + 12.0f,
                                               title_min.y + (title_h - ImGui::GetFontSize()) * 0.5f));
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.545f, 0.580f, 0.620f, 1.0f));
-            ImGui::TextUnformatted(ICON_TERMINAL " REPL");
+            ImGui::TextUnformatted("\xe2\x9a\xa1 Rayforce");
             ImGui::PopStyleColor();
 
             // Window control buttons (right side) — simple text buttons

@@ -17,7 +17,7 @@
 // REPL widget
 #define ICON_TERMINAL   "\xef\x84\xa0"   // f120 - terminal
 #define ICON_CHEVRON_R  "\xef\x81\x94"   // f054 - prompt chevron
-#define ICON_PROMPT     "\xe2\x96\xb8"   // U+25B8 - small right triangle (▸) for prompt
+#define ICON_PROMPT     "\xc2\xbb"       // U+00BB - right double angle quote (») for prompt
 
 // Widget types (for tabs/headers)
 #define ICON_TABLE       "\xef\x83\x8e"  // f0ce - fa-table
