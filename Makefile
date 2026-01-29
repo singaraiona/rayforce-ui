@@ -185,7 +185,7 @@ $(RAYFORCE_LIB):
 # Use C++ linker since we have C++ objects
 ifneq (,$(IS_WINDOWS))
 $(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
-	$(CXX) -nostdlib++ -Wl,/map:$@.map -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
+	$(CXX) -Wl,/map:$@.map -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
 else
 $(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
 	$(CXX) -nostdlib++ -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)

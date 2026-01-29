@@ -12,7 +12,7 @@
 #include <string.h>
 #include <signal.h>
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(DEBUG)
 #include <windows.h>
 #include <dbghelp.h>
 static LONG WINAPI crash_handler(EXCEPTION_POINTERS* ep) {
@@ -180,7 +180,7 @@ nil_t rfui_destroy(nil_t) {
 }
 
 i32_t main(i32_t argc, str_p argv[]) {
-#ifdef _WIN32
+#if defined(_WIN32) && defined(DEBUG)
     SetUnhandledExceptionFilter(crash_handler);
 #endif
     printf("rayforce-ui v%d.%d\n", RFUI_VERSION_MAJOR, RFUI_VERSION_MINOR);
