@@ -8,6 +8,7 @@
 
 #include "imgui.h"
 #include "../include/rfui/icons.h"
+#include "../include/rfui/syntax.h"
 
 // Scrollback limits
 static const int MAX_HISTORY_SIZE = 1000;
@@ -280,6 +281,7 @@ nil_t rfui_repl_render(nil_t) {
     ImGui::SameLine(0, 0);
 
     // Make input field blend with terminal (no frame, no border, no highlight)
+    // Text color is transparent — we overlay syntax-highlighted text on top
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
@@ -287,9 +289,11 @@ nil_t rfui_repl_render(nil_t) {
     ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_NavHighlight, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0, 0, 0, 0));  // transparent text
 
-    // Auto-focus input
-    if (ImGui::IsWindowAppearing() || state->scroll_to_bottom) {
+    // Focus input on any click within the terminal area
+    if (ImGui::IsWindowAppearing() || state->scroll_to_bottom ||
+        (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) && ImGui::IsMouseClicked(0))) {
         ImGui::SetKeyboardFocusHere();
     }
 
@@ -301,7 +305,36 @@ nil_t rfui_repl_render(nil_t) {
                                            sizeof(state->input_buf), flags,
                                            input_callback, state);
 
-    ImGui::PopStyleColor(5);
+    // Overlay syntax-highlighted text on top of the invisible InputText
+    if (state->input_buf[0] != '\0') {
+        ImVec2 text_pos = ImGui::GetItemRectMin();
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImFont* font = ImGui::GetFont();
+        float font_size = ImGui::GetFontSize();
+
+        rfui_token_t tokens[512];
+        int ntok = rfui_tokenize(state->input_buf, tokens, 512);
+
+        for (int t = 0; t < ntok; t++) {
+            const char* tok_start = state->input_buf + tokens[t].start;
+            const char* tok_end = tok_start + tokens[t].len;
+            ImVec4 color = rfui_token_color(tokens[t].type);
+
+            // Compute X offset: measure text up to this token's start
+            float x_off = 0.0f;
+            if (tokens[t].start > 0) {
+                x_off = font->CalcTextSizeA(font_size, FLT_MAX, -1.0f,
+                            state->input_buf, state->input_buf + tokens[t].start).x;
+            }
+
+            draw_list->AddText(font, font_size,
+                ImVec2(text_pos.x + x_off, text_pos.y),
+                ImGui::ColorConvertFloat4ToU32(color),
+                tok_start, tok_end);
+        }
+    }
+
+    ImGui::PopStyleColor(6);
     ImGui::PopStyleVar(2);
 
     // Handle Enter
