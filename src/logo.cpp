@@ -20,10 +20,14 @@
 #endif
 #endif
 
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
 #define NANOSVG_IMPLEMENTATION
-#include "../deps/nanosvg/nanosvg.h"
+#include "../deps/nanosvg/src/nanosvg.h"
 #define NANOSVGRAST_IMPLEMENTATION
-#include "../deps/nanosvg/nanosvgrast.h"
+#include "../deps/nanosvg/src/nanosvgrast.h"
 
 extern "C" {
 #include "../include/rfui/logo.h"

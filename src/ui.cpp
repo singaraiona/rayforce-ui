@@ -5,9 +5,14 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include <direct.h>
+#define mkdir(path, mode) _mkdir(path)
+#else
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#endif
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -91,7 +96,7 @@ static char* get_config_path(void) {
 }
 
 // External context (set by main.c)
-extern rfui_ctx_t* g_ctx;
+extern "C" rfui_ctx_t* g_ctx;
 
 extern "C" {
 

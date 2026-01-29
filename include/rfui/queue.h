@@ -3,14 +3,14 @@
 #define RFUI_QUEUE_H
 
 #include "../../deps/rayforce/core/rayforce.h"
-#include <pthread.h>
+#include "../../deps/rayforce/core/thread.h"
 
 typedef struct rfui_queue_t {
     raw_p* data;
     i64_t capacity;
     i64_t head;
     i64_t tail;
-    pthread_mutex_t mutex;
+    mutex_t mutex;
 } *rfui_queue_p;
 
 rfui_queue_p rfui_queue_create(i64_t capacity);

@@ -4,8 +4,8 @@
 
 #include "../../deps/rayforce/core/rayforce.h"
 #include "../../deps/rayforce/core/poll.h"
+#include "../../deps/rayforce/core/thread.h"
 #include "queue.h"
-#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,8 +26,8 @@ typedef struct rfui_ctx_t {
     rfui_queue_p ray_to_ui;   // Rayforce thread -> UI thread
 
     // Thread sync - protects ready, quit, and waker fields
-    pthread_mutex_t ready_mutex;
-    pthread_cond_t ready_cond;
+    mutex_t ready_mutex;
+    cond_t ready_cond;
     b8_t ready;                  // Rayforce thread signals when ready
 
     // Rayforce poll waker (set by Rayforce thread)

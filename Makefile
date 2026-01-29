@@ -7,9 +7,15 @@ ifeq ($(OS),)
 OS := $(shell uname -s | tr "[:upper:]" "[:lower:]")
 endif
 
+IS_WINDOWS := $(filter Windows_NT,$(OS))$(findstring mingw,$(OS))$(findstring msys,$(OS))
+
 # Build rayforce library first
 RAYFORCE_DIR = deps/rayforce
+ifneq (,$(IS_WINDOWS))
+RAYFORCE_LIB = $(RAYFORCE_DIR)/librayforce.exe.a
+else
 RAYFORCE_LIB = $(RAYFORCE_DIR)/librayforce.a
+endif
 
 # ImGui/ImPlot directories
 IMGUI_DIR = deps/imgui
@@ -95,9 +101,33 @@ CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$(STD) -g 
 LIBS = -lm -ldl -lpthread -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -lstdc++
 endif
 
+ifneq (,$(IS_WINDOWS))
+AR = llvm-ar
+# GLFW Windows-specific sources
+GLFW_SRC_PLATFORM = $(GLFW_DIR)/src/win32_init.c \
+                    $(GLFW_DIR)/src/win32_monitor.c \
+                    $(GLFW_DIR)/src/win32_window.c \
+                    $(GLFW_DIR)/src/win32_joystick.c \
+                    $(GLFW_DIR)/src/win32_time.c \
+                    $(GLFW_DIR)/src/win32_thread.c \
+                    $(GLFW_DIR)/src/win32_module.c \
+                    $(GLFW_DIR)/src/wgl_context.c
+
+GLFW_DEFINES = -D_GLFW_WIN32
+GLFW_LIBS =
+
+CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -Wall -Wextra -std=$(STD) -g -O0 -D_CRT_SECURE_NO_WARNINGS -DDEBUG
+LIBS = -fuse-ld=lld -lws2_32 -lmswsock -lkernel32 -lopengl32 -lgdi32 -luser32 -lshell32
+TARGET = rayforce-ui.exe
+endif
+
 # GLFW C flags (separate from main CFLAGS to avoid def.h force-include)
+ifneq (,$(IS_WINDOWS))
+GLFW_CFLAGS = -Wall -std=c99 -g -O0 $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
+else
 # Note: _GNU_SOURCE needed for clock_gettime, CLOCK_MONOTONIC, O_CLOEXEC, etc.
 GLFW_CFLAGS = -fPIC -Wall -std=c99 -g -O0 -D_GNU_SOURCE $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
+endif
 
 # All GLFW sources
 GLFW_SRC = $(GLFW_SRC_COMMON) $(GLFW_SRC_PLATFORM)
@@ -105,9 +135,13 @@ GLFW_OBJ = $(GLFW_SRC:.c=.o)
 
 # C++ flags for ImGui (includes GLFW headers)
 # Note: C++ files should NOT include rayforce/core directly (shadows system string.h)
+ifneq (,$(IS_WINDOWS))
+CXXFLAGS = -std=c++17 -D_CRT_SECURE_NO_WARNINGS $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -Wall -Wextra -g -O0
+else
 GCC_VER := $(shell ls /usr/include/c++/ 2>/dev/null | sort -V | tail -1)
 GCC_CXX_INCLUDES := $(if $(GCC_VER),-cxx-isystem /usr/include/c++/$(GCC_VER) -cxx-isystem /usr/include/x86_64-linux-gnu/c++/$(GCC_VER))
 CXXFLAGS = -std=c++11 $(GCC_CXX_INCLUDES) $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -g -O0
+endif
 
 # Includes for C files (can include rayforce core)
 INCLUDES_C = -Iinclude -I$(RAYFORCE_DIR)/core $(IMGUI_INCLUDES) $(GLFW_INCLUDES)
@@ -123,13 +157,21 @@ OBJ_C = $(SRC_C:.c=.o)
 SRC_CXX = src/ui.cpp src/widget_registry.cpp src/grid_renderer.cpp src/chart_renderer.cpp src/text_renderer.cpp src/repl_renderer.cpp src/syntax.cpp src/theme.cpp src/logo.cpp
 OBJ_CXX = $(SRC_CXX:.cpp=.o)
 
+ifeq (,$(IS_WINDOWS))
 TARGET = rayforce-ui
+endif
 
 default: rayforce_lib $(TARGET)
 
+ifneq (,$(IS_WINDOWS))
+release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -Wall -Wextra -std=$(STD) -O3 -DNDEBUG -D_CRT_SECURE_NO_WARNINGS
+release: CXXFLAGS = -std=c++17 -D_CRT_SECURE_NO_WARNINGS $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -Wall -Wextra -O3 -DNDEBUG
+release: GLFW_CFLAGS = -Wall -std=c99 -O3 $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
+else
 release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$(STD) -O3 -DNDEBUG -march=native -fsigned-char -m64
 release: CXXFLAGS = -std=c++11 $(GCC_CXX_INCLUDES) $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -O3 -DNDEBUG
 release: GLFW_CFLAGS = -fPIC -Wall -std=c99 -O3 -D_GNU_SOURCE $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
+endif
 release: rayforce_lib_release $(TARGET)
 
 rayforce_lib_release:

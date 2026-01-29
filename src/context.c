@@ -26,20 +26,8 @@ rfui_ctx_t* rfui_ctx_create(i32_t argc, str_p argv[]) {
     }
 
     // Initialize thread synchronization primitives
-    if (pthread_mutex_init(&ctx->ready_mutex, NULL) != 0) {
-        rfui_queue_destroy(ctx->ray_to_ui);
-        rfui_queue_destroy(ctx->ui_to_ray);
-        free(ctx);
-        return NULL;
-    }
-
-    if (pthread_cond_init(&ctx->ready_cond, NULL) != 0) {
-        pthread_mutex_destroy(&ctx->ready_mutex);
-        rfui_queue_destroy(ctx->ray_to_ui);
-        rfui_queue_destroy(ctx->ui_to_ray);
-        free(ctx);
-        return NULL;
-    }
+    ctx->ready_mutex = mutex_create();
+    ctx->ready_cond = cond_create();
 
     // Initialize state
     ctx->ready = B8_FALSE;
@@ -53,8 +41,8 @@ nil_t rfui_ctx_destroy(rfui_ctx_t* ctx) {
     if (!ctx) return;
 
     // Destroy synchronization primitives
-    pthread_cond_destroy(&ctx->ready_cond);
-    pthread_mutex_destroy(&ctx->ready_mutex);
+    cond_destroy(&ctx->ready_cond);
+    mutex_destroy(&ctx->ready_mutex);
 
     // Destroy queues
     rfui_queue_destroy(ctx->ui_to_ray);
@@ -68,52 +56,52 @@ nil_t rfui_ctx_destroy(rfui_ctx_t* ctx) {
 nil_t rfui_ctx_wait_ready(rfui_ctx_t* ctx) {
     if (!ctx) return;
 
-    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
+    mutex_lock(&ctx->ready_mutex);
     while (!ctx->ready) {
-        pthread_cond_wait(&ctx->ready_cond, &ctx->ready_mutex);
+        cond_wait(&ctx->ready_cond, &ctx->ready_mutex);
     }
-    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    mutex_unlock(&ctx->ready_mutex);
 }
 
 nil_t rfui_ctx_signal_ready(rfui_ctx_t* ctx) {
     if (!ctx) return;
 
-    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
+    mutex_lock(&ctx->ready_mutex);
     ctx->ready = B8_TRUE;
-    (void)pthread_cond_signal(&ctx->ready_cond);
-    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    cond_signal(&ctx->ready_cond);
+    mutex_unlock(&ctx->ready_mutex);
 }
 
 nil_t rfui_ctx_set_quit(rfui_ctx_t* ctx, b8_t quit) {
     if (!ctx) return;
 
-    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
+    mutex_lock(&ctx->ready_mutex);
     ctx->quit = quit;
-    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    mutex_unlock(&ctx->ready_mutex);
 }
 
 b8_t rfui_ctx_get_quit(rfui_ctx_t* ctx) {
     if (!ctx) return B8_TRUE;  // Safe default: quit if ctx is invalid
 
-    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return B8_TRUE;
+    mutex_lock(&ctx->ready_mutex);
     b8_t quit = ctx->quit;
-    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    mutex_unlock(&ctx->ready_mutex);
     return quit;
 }
 
 nil_t rfui_ctx_set_waker(rfui_ctx_t* ctx, poll_waker_p waker) {
     if (!ctx) return;
 
-    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return;
+    mutex_lock(&ctx->ready_mutex);
     ctx->waker = waker;
-    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    mutex_unlock(&ctx->ready_mutex);
 }
 
 poll_waker_p rfui_ctx_get_waker(rfui_ctx_t* ctx) {
     if (!ctx) return NULL;
 
-    if (pthread_mutex_lock(&ctx->ready_mutex) != 0) return NULL;
+    mutex_lock(&ctx->ready_mutex);
     poll_waker_p waker = ctx->waker;
-    (void)pthread_mutex_unlock(&ctx->ready_mutex);
+    mutex_unlock(&ctx->ready_mutex);
     return waker;
 }

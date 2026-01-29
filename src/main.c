@@ -6,14 +6,10 @@
 #include "../include/rfui/queue.h"
 #include "../include/rfui/rayforce_thread.h"
 #include "../include/rfui/ui.h"
-#include <pthread.h>
+#include "../deps/rayforce/core/thread.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-// C standard library string functions (declared explicitly since rayforce's
-// string.h shadows <string.h> in the include path)
-extern size_t strlen(const char* s);
-extern void* memcpy(void* dest, const void* src, size_t n);
+#include <string.h>
 
 // Helper to duplicate string (portable version of strdup)
 static char* rfui_strdup(const char* s) {
@@ -28,7 +24,7 @@ static char* rfui_strdup(const char* s) {
 
 // Global state (g_ctx is non-static so ui.cpp can access it)
 rfui_ctx_t* g_ctx = NULL;
-static pthread_t g_ray_thread;
+static ray_thread_t g_ray_thread;
 
 i32_t rfui_init(i32_t argc, str_p argv[]) {
     // Create context with command line arguments
@@ -47,7 +43,8 @@ i32_t rfui_init(i32_t argc, str_p argv[]) {
     }
 
     // Start Rayforce thread
-    if (pthread_create(&g_ray_thread, NULL, rfui_rayforce_thread, g_ctx) != 0) {
+    g_ray_thread = ray_thread_create(rfui_rayforce_thread, g_ctx);
+    if (!g_ray_thread.handle) {
         fprintf(stderr, "Failed to create Rayforce thread\n");
         rfui_ui_destroy();
         rfui_ctx_destroy(g_ctx);
@@ -140,9 +137,9 @@ nil_t rfui_destroy(nil_t) {
     }
 
     // Join thread - continue with cleanup even if join fails
-    int join_result = pthread_join(g_ray_thread, NULL);
+    int join_result = thread_join(g_ray_thread);
     if (join_result != 0) {
-        fprintf(stderr, "Warning: pthread_join failed with error %d\n", join_result);
+        fprintf(stderr, "Warning: thread_join failed with error %d\n", join_result);
     }
 
     // Destroy UI (GLFW/ImGui)
