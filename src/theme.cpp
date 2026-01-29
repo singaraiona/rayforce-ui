@@ -47,6 +47,7 @@ void rfui_theme_apply(void) {
     style.GrabMinSize       = 8.0f;
     style.TabBarBorderSize  = 1.0f;
     style.DockingSeparatorSize = 2.0f;
+    style.WindowMinSize     = ImVec2(300, 200);
 
     // --- ImGui Colors ---
     ImVec4* c = style.Colors;

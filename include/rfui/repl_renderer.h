@@ -17,6 +17,9 @@ nil_t rfui_repl_render(nil_t);
 // Add result text to REPL output (called when MSG_RESULT received)
 nil_t rfui_repl_add_result_text(const char* text);
 
+// Load a script file via REPL (shows in history, evaluates)
+nil_t rfui_repl_load_file(const char* path);
+
 // Destroy REPL state
 nil_t rfui_repl_destroy(nil_t);
 

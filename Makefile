@@ -20,6 +20,7 @@ endif
 # ImGui/ImPlot directories
 IMGUI_DIR = deps/imgui
 IMPLOT_DIR = deps/implot
+FILEDIALOG_DIR = deps/ImGuiFileDialog
 
 # GLFW directory
 GLFW_DIR = deps/glfw
@@ -35,6 +36,9 @@ IMGUI_SRC = $(IMGUI_DIR)/imgui.cpp \
 # ImPlot source files
 IMPLOT_SRC = $(IMPLOT_DIR)/implot.cpp \
              $(IMPLOT_DIR)/implot_items.cpp
+
+# ImGuiFileDialog source
+FILEDIALOG_SRC = $(FILEDIALOG_DIR)/ImGuiFileDialog.cpp
 
 # GLFW source files - common
 GLFW_SRC_COMMON = $(GLFW_DIR)/src/context.c \
@@ -54,6 +58,7 @@ GLFW_SRC_COMMON = $(GLFW_DIR)/src/context.c \
 # ImGui object files
 IMGUI_OBJ = $(IMGUI_SRC:.cpp=.o)
 IMPLOT_OBJ = $(IMPLOT_SRC:.cpp=.o)
+FILEDIALOG_OBJ = $(FILEDIALOG_SRC:.cpp=.o)
 
 # ImGui includes
 IMGUI_INCLUDES = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -I$(IMPLOT_DIR)
@@ -147,7 +152,7 @@ endif
 INCLUDES_C = -Iinclude -I$(RAYFORCE_DIR)/core $(IMGUI_INCLUDES) $(GLFW_INCLUDES)
 
 # Includes for C++ files (exclude rayforce core to avoid shadowing system headers)
-INCLUDES_CXX = -Iinclude $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -Ideps/nanosvg
+INCLUDES_CXX = -Iinclude $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -Ideps/nanosvg -I$(FILEDIALOG_DIR)
 
 # C source files
 SRC_C = src/main.c src/queue.c src/widget.c src/context.c src/rayforce_thread.c
@@ -184,10 +189,10 @@ $(RAYFORCE_LIB):
 
 # Use C++ linker since we have C++ objects
 ifneq (,$(IS_WINDOWS))
-$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
+$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(FILEDIALOG_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
 	$(CXX) -Wl,/map:$@.map -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
 else
-$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
+$(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(FILEDIALOG_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
 	$(CXX) -nostdlib++ -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
 endif
 
@@ -209,6 +214,9 @@ $(IMGUI_DIR)/backends/%.o: $(IMGUI_DIR)/backends/%.cpp
 $(IMPLOT_DIR)/%.o: $(IMPLOT_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -I$(IMGUI_DIR) -c $< -o $@
 
+$(FILEDIALOG_DIR)/%.o: $(FILEDIALOG_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 # C source compilation for GLFW
 $(GLFW_DIR)/src/%.o: $(GLFW_DIR)/src/%.c
 	$(CC) $(GLFW_CFLAGS) -c $< -o $@
@@ -221,7 +229,7 @@ deps:
 	fi
 
 clean:
-	rm -f $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(GLFW_OBJ) $(TARGET)
+	rm -f $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(FILEDIALOG_OBJ) $(GLFW_OBJ) $(TARGET)
 	$(MAKE) -C $(RAYFORCE_DIR) clean
 
 .PHONY: default release clean deps

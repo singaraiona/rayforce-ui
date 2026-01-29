@@ -15,6 +15,7 @@
 #define ICON_ERASER     "\xef\x84\xad"   // f12d - clear
 
 // REPL widget
+#define ICON_FOLDER_OPEN "\xef\x81\xbc"  // f07c - fa-folder-open
 #define ICON_TERMINAL   "\xef\x84\xa0"   // f120 - terminal
 #define ICON_CHEVRON_R  "\xef\x81\x94"   // f054 - prompt chevron
 #define ICON_PROMPT     "\xc2\xbb"       // U+00BB - right double angle quote (») for prompt

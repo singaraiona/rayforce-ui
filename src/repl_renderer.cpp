@@ -7,6 +7,7 @@
 #include <string>
 
 #include "imgui.h"
+#include "ImGuiFileDialog.h"
 #include "../include/rfui/icons.h"
 #include "../include/rfui/syntax.h"
 
@@ -388,6 +389,29 @@ nil_t rfui_repl_add_result_text(const char* text) {
     }
     g_repl->lines.push_back({std::string(text), type});
     g_repl->scroll_to_bottom = true;
+}
+
+nil_t rfui_repl_load_file(const char* path) {
+    if (!g_repl || !path) return;
+
+    // Normalize backslashes to forward slashes for Rayfall
+    char norm[4096];
+    snprintf(norm, sizeof(norm), "%s", path);
+    for (char* p = norm; *p; p++) {
+        if (*p == '\\') *p = '/';
+    }
+
+    char expr[4096];
+    snprintf(expr, sizeof(expr), "(load \"%s\")", norm);
+
+    // Show in REPL history
+    if ((int)g_repl->lines.size() >= MAX_OUTPUT_LINES) {
+        g_repl->lines.erase(g_repl->lines.begin());
+    }
+    g_repl->lines.push_back({std::string(ICON_PROMPT " ") + expr, LINE_INPUT});
+    g_repl->scroll_to_bottom = true;
+
+    rfui_eval(expr);
 }
 
 nil_t rfui_repl_destroy(nil_t) {

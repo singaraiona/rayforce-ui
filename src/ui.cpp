@@ -18,6 +18,7 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "implot.h"
+#include "ImGuiFileDialog.h"
 
 #include "../include/rfui/theme.h"
 #include "../include/rfui/logo.h"
@@ -381,9 +382,26 @@ i32_t rfui_ui_run(nil_t) {
             ImGui::TextUnformatted("\xe2\x9a\xa1 Rayforce");
             ImGui::PopStyleColor();
 
-            // Window control buttons (right side) — simple text buttons
+            // Open script button (right side, before window controls)
             float btn_w = title_h * 1.4f;
             float btn_x = title_max.x - btn_w * 3;
+            float open_btn_x = btn_x - btn_w;
+
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.1f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.545f, 0.580f, 0.620f, 1.0f));
+            ImGui::SetCursorScreenPos(ImVec2(open_btn_x, title_min.y));
+            ImGui::SetWindowFontScale(0.7f);
+            if (ImGui::Button(ICON_FOLDER_OPEN "##open", ImVec2(btn_w, title_h))) {
+                IGFD::FileDialogConfig config;
+                config.path = "examples";
+                ImGuiFileDialog::Instance()->OpenDialog("LoadScript", "Open Script", ".rfl", config);
+            }
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::PopStyleColor(4);
+
+            // Window control buttons (right side) — simple text buttons
             bool maximized = glfwGetWindowAttrib(g_window, GLFW_MAXIMIZED) != 0;
 
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
@@ -419,7 +437,7 @@ i32_t rfui_ui_run(nil_t) {
 
             // Title bar drag-to-move (only in the non-button area)
             ImGui::SetCursorScreenPos(title_min);
-            ImGui::InvisibleButton("##titlebar_drag", ImVec2(btn_x - title_min.x, title_h));
+            ImGui::InvisibleButton("##titlebar_drag", ImVec2(open_btn_x - title_min.x, title_h));
             // Double-click to maximize/restore
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
                 if (maximized) glfwRestoreWindow(g_window);
@@ -468,6 +486,16 @@ i32_t rfui_ui_run(nil_t) {
                 ImVec2(title_min.x, title_max.y),
                 ImVec2(title_max.x, title_max.y),
                 IM_COL32(48, 54, 61, 255));  // COL_BORDER #30363D
+
+            // --- File dialog ---
+            if (ImGuiFileDialog::Instance()->Display("LoadScript",
+                    ImGuiWindowFlags_NoCollapse, ImVec2(800, 500))) {
+                if (ImGuiFileDialog::Instance()->IsOk()) {
+                    std::string path = ImGuiFileDialog::Instance()->GetFilePathName();
+                    rfui_repl_load_file(path.c_str());
+                }
+                ImGuiFileDialog::Instance()->Close();
+            }
 
             // --- REPL content below title bar ---
             ImGui::SetCursorScreenPos(ImVec2(title_min.x + 8.0f, title_max.y + 4.0f));
