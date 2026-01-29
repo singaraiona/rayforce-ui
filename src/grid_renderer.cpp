@@ -291,6 +291,10 @@ nil_t rfui_render_grid(rfui_widget_t* widget) {
         return;
     }
     i64_t nrows = first_col->len;
+    if (nrows == 0) {
+        ImGui::TextDisabled("Empty table (0 rows)");
+        return;
+    }
 
     // Validate all columns have the same length
     for (i64_t col_idx = 1; col_idx < ncols; col_idx++) {

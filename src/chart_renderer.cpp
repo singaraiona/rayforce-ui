@@ -472,6 +472,10 @@ nil_t rfui_render_chart(rfui_widget_t* widget) {
         return;
     }
     i64_t nrows = first_col->len;
+    if (nrows == 0) {
+        ImGui::TextDisabled("Empty table");
+        return;
+    }
 
     // Count numeric columns for display info
     i64_t numeric_cols = 0;
