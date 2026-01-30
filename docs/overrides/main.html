@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
 {% block extrahead %}
+<style>html:not(.fonts-ready) body { opacity: 0; } html.fonts-ready body { opacity: 1; transition: opacity .15s ease; }</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script>document.fonts.ready.then(function(){document.documentElement.classList.add('fonts-ready')});setTimeout(function(){document.documentElement.classList.add('fonts-ready')},2000);</script>
 {% if page.is_homepage %}
 <style>
 /* Reset root font-size to match standalone page */
@@ -455,9 +460,6 @@ body:has(.landing-wrapper) .md-main { margin-top: 0 !important; }
 .landing-wrapper .terminal-body .done { color: #6be675; }
 .landing-wrapper .terminal-body .info { color: var(--text-dim); }
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 {% endif %}
 {% endblock %}
 
@@ -517,9 +519,9 @@ body:has(.landing-wrapper) .md-main { margin-top: 0 !important; }
 <nav class="ship-nav">
   <div class="nav-brand"><span class="dot"></span> RayforceUI</div>
   <ul class="nav-links">
-    <li><a href="#">Docs</a></li>
-    <li><a href="#">Changelog</a></li>
-    <li><a href="#">Contact</a></li>
+    <li><a href="getting-started/">Docs</a></li>
+    <li><a href="changelog/">Changelog</a></li>
+    <li><a href="https://github.com/nicholasgasior/rayforce-ui/issues">Contact</a></li>
   </ul>
   <div class="nav-status"><span class="indicator"></span> SYS ONLINE</div>
 </nav>
