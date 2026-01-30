@@ -1,7 +1,7 @@
 site_name: Rayforce UI
 site_description: Native GUI framework for RayforceDB — grids, charts, and REPL powered by Rayfall
 site_url: https://rayforce.dev/rayforce-ui/
-repo_url: https://github.com/nicholasgasior/rayforce-ui
+repo_url: https://github.com/RayforceDB/rayforce-ui
 repo_name: GitHub
 
 theme:
@@ -28,7 +28,7 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/nicholasgasior/rayforce-ui
+      link: https://github.com/RayforceDB/rayforce-ui
     - icon: fontawesome/brands/x-twitter
       link: https://x.com/RayforceDB
     - icon: fontawesome/brands/reddit
