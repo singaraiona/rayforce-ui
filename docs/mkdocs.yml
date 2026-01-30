@@ -31,6 +31,12 @@ extra:
       link: https://github.com/nicholasgasior/rayforce-ui
     - icon: fontawesome/brands/x-twitter
       link: https://x.com/RayforceDB
+    - icon: fontawesome/brands/reddit
+      link: https://www.reddit.com/r/rayforcedb/
+    - icon: simple/zulip
+      link: https://rayforcedb.zulipchat.com/join/l33sichu4vp7nf77hgdul4om/
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/rayforcedb
 
 copyright: Copyright &copy; 2025 Rayforce
 
