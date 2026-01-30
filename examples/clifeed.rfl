@@ -1,0 +1,42 @@
+;; Trades grid — last 100 trades
+(set t (widget {type: 'grid name: "Trades"}))
+
+;; Quotes grid — last 100 quotes
+(set q (widget {type: 'grid name: "Quotes"}))
+
+;; Trades Summary
+(set ts (widget {type: 'text name: "Trades Count"}))
+
+;; Quotes Summary
+(set qs (widget {type: 'text name: "Quotes Count"}))
+
+;; Candlestick chart — OHLC bars from last 500 trades, 10 trades per bar
+(set pc (widget {type: 'chart name: "Price Chart"}))
+
+;; Client-side callback — named global so symbol survives IPC round-trip
+;; (lambdas capturing widget objects cannot be serialized over IPC)
+(set on_feed (fn [x]
+    (draw q  (at x 0))
+    (draw t  (at x 1))
+    (draw ts (at x 2))
+    (draw qs (at x 3))
+    (draw pc (at x 4)) ))
+
+;; Subscribe to a feed
+(set sq (list
+    ;; cli side: symbol reference — resolves locally when server calls back
+    'on_feed
+    ;; srv side fn
+    (fn []
+        (list
+            (take quotes -100)
+            (take trades -100)
+            (count trades)
+            (count quotes)
+            (select {from: (take trades -500) by: (xbar Ts 1000) open: (first Price) high: (max Price) low: (min Price) close: (last Price)})) ) ) )
+
+;; Subscribe
+(set h (hopen "localhost:5110"))
+(write h (list 'sub sq))
+
+;; Enjoy!

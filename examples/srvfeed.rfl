@@ -1,0 +1,10 @@
+(set clients {})
+(set sub (fn [x] (alter 'clients set .z.w x)))
+
+(set trades (table [Sym Ts Price] (list (as 'SYMBOL []) (as 'TIME []) [])))
+(set quotes (table [Sym Ts Bid Ask] (list (as 'SYMBOL []) (as 'TIME []) [] [])))
+(timer 10 1000000000 (fn [x] (insert 'quotes (list (at [AAPL IBM MSFT BABA GOOG AMZN] (first (rand 1 5))) (time 'utc) (first (rand 1 1000)) (first (rand 1 1000))))))
+(timer 20 1000000000 (fn [x] (insert 'trades (list (at [AAPL IBM MSFT BABA GOOG AMZN] (first (rand 1 5))) (time 'utc) (first (rand 1 1000))))))
+(timer 30 1000000000 (fn [x] (map (fn [x y] (try (write (neg x) (list (at y 0) ((at y 1)))) (fn [x] ))) (key clients) (value clients))))
+
+(system "listen 5110")
