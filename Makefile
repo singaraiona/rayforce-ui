@@ -136,7 +136,7 @@ endif
 
 # All GLFW sources
 GLFW_SRC = $(GLFW_SRC_COMMON) $(GLFW_SRC_PLATFORM)
-GLFW_OBJ = $(GLFW_SRC:.c=.o)
+GLFW_OBJ = $(patsubst %.m,%.o,$(GLFW_SRC:.c=.o))
 
 # C++ flags for ImGui (includes GLFW headers)
 # Note: C++ files should NOT include rayforce/core directly (shadows system string.h)
@@ -219,6 +219,10 @@ $(FILEDIALOG_DIR)/%.o: $(FILEDIALOG_DIR)/%.cpp
 
 # C source compilation for GLFW
 $(GLFW_DIR)/src/%.o: $(GLFW_DIR)/src/%.c
+	$(CC) $(GLFW_CFLAGS) -c $< -o $@
+
+# Objective-C source compilation for GLFW (macOS)
+$(GLFW_DIR)/src/%.o: $(GLFW_DIR)/src/%.m
 	$(CC) $(GLFW_CFLAGS) -c $< -o $@
 
 # Fetch dependencies
