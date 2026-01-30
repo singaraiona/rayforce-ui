@@ -103,7 +103,7 @@ GLFW_DEFINES = -D_GLFW_COCOA
 GLFW_LIBS =
 
 CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$(STD) -g -O0 -march=native -fsigned-char -DDEBUG -m64
-LIBS = -lm -ldl -lpthread -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -lstdc++
+LIBS = -lm -ldl -lpthread -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -lc++
 endif
 
 ifneq (,$(IS_WINDOWS))
