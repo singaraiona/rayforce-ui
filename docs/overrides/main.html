@@ -1,1 +1,623 @@
 {% extends "base.html" %}
+
+{% block extrahead %}
+{% if page.is_homepage %}
+<style>
+/* Reset root font-size to match standalone page */
+html { font-size: 16px !important; }
+
+/* Hide MkDocs chrome on homepage */
+body:has(.landing-wrapper) { overflow: hidden !important; height: 100vh !important; }
+body:has(.landing-wrapper) .md-header { display: none !important; }
+body:has(.landing-wrapper) .md-sidebar { display: none !important; }
+body:has(.landing-wrapper) .md-tabs { display: none !important; }
+body:has(.landing-wrapper) .md-footer { display: none !important; }
+body:has(.landing-wrapper) .md-main__inner { margin: 0 !important; padding: 0 !important; }
+body:has(.landing-wrapper) .md-content { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+body:has(.landing-wrapper) .md-content__inner { margin: 0 !important; padding: 0 !important; }
+body:has(.landing-wrapper) .md-container { padding-bottom: 0 !important; }
+body:has(.landing-wrapper) .md-main { margin-top: 0 !important; }
+
+/* Landing page styles */
+.landing-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 100;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(10,14,26,.8), rgba(10,14,26,.8)),
+    url('images/cover.jpeg');
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+}
+
+.landing-wrapper {
+  --bg: #0a0e1a;
+  --cyan: #00e5ff;
+  --orange: #ff6b00;
+  --text: #e0e6f0;
+  --text-dim: #7a8ba8;
+  font-size: 16px;
+}
+
+.landing-wrapper .logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 900;
+  color: var(--cyan);
+  text-shadow: 0 0 25px rgba(0,229,255,.4), 0 0 60px rgba(0,229,255,.15);
+  position: relative;
+  z-index: 2;
+}
+
+.landing-wrapper .downloads {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.landing-wrapper .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: .8rem;
+  padding: .75rem 1.6rem .75rem 1.4rem;
+  border: none;
+  color: #fff;
+  background: var(--orange);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  position: relative;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: background .2s;
+}
+.landing-wrapper .btn::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  background: linear-gradient(135deg, rgba(255,107,0,.15), rgba(255,107,0,.05)), var(--bg);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  pointer-events: none;
+  z-index: 0;
+}
+.landing-wrapper .btn > * { position: relative; z-index: 1; }
+.landing-wrapper .btn:hover::before {
+  background: linear-gradient(135deg, rgba(255,107,0,.3), rgba(255,107,0,.1)), var(--bg);
+}
+.landing-wrapper .btn svg, .landing-wrapper .socials svg {
+  flex-shrink: 0;
+}
+
+.landing-wrapper .socials {
+  display: flex;
+  gap: 1rem;
+  position: relative;
+  z-index: 2;
+}
+.landing-wrapper .socials a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(0,229,255,.3);
+  border-radius: 4px;
+  color: var(--cyan);
+  background: rgba(0,229,255,.05);
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.landing-wrapper .socials a:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 15px rgba(0,229,255,.3);
+  background: rgba(0,229,255,.1);
+}
+
+/* Side panel blending */
+.landing-wrapper .side-panel {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.landing-wrapper .side-panel-left {
+  left: 0;
+  width: 55%;
+  background:
+    linear-gradient(90deg,
+      #0a0e1a 0%,
+      rgba(10,14,26,.97) 10%,
+      rgba(8,22,40,.6) 25%,
+      rgba(0,40,60,.2) 45%,
+      transparent 100%
+    );
+}
+.landing-wrapper .side-panel-right {
+  right: 0;
+  width: 55%;
+  background:
+    linear-gradient(-90deg,
+      #0a0e1a 0%,
+      rgba(10,14,26,.97) 10%,
+      rgba(15,10,35,.6) 25%,
+      rgba(40,15,60,.2) 45%,
+      transparent 100%
+    );
+}
+
+/* Hull SVG */
+.landing-wrapper .hull-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+.landing-wrapper .hull-svg line {
+  stroke-linecap: square;
+  fill: none;
+}
+.landing-wrapper .hull-svg .beam-cyan { stroke: rgba(0,229,255,.3); stroke-width: 1.5; }
+.landing-wrapper .hull-svg .beam-cyan-thin { stroke: rgba(0,229,255,.15); stroke-width: 1; }
+.landing-wrapper .hull-svg .beam-orange { stroke: rgba(255,107,0,.25); stroke-width: 1.5; }
+.landing-wrapper .hull-svg .beam-orange-thin { stroke: rgba(255,107,0,.12); stroke-width: 1; }
+.landing-wrapper .hull-svg .beam-glow { stroke: rgba(0,229,255,.08); stroke-width: 6; opacity: .4; }
+.landing-wrapper .hull-svg .beam-glow-o { stroke: rgba(255,107,0,.06); stroke-width: 5; opacity: .4; }
+.landing-wrapper .hull-svg .dashed { stroke-dasharray: 30 15 8 15; }
+.landing-wrapper .hull-svg .dashed2 { stroke-dasharray: 50 20 5 10 15 20; }
+.landing-wrapper .hull-svg .dashed3 { stroke-dasharray: 12 25 40 10; }
+
+/* Hull nodes */
+.landing-wrapper .hull-node {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+.landing-wrapper .hull-node::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+}
+.landing-wrapper .node-cyan {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan), 0 0 20px rgba(0,229,255,.2);
+}
+.landing-wrapper .node-orange {
+  background: var(--orange);
+  box-shadow: 0 0 8px var(--orange), 0 0 20px rgba(255,107,0,.2);
+}
+.landing-wrapper .node-pulse { opacity: .5; }
+
+/* Corner runes */
+.landing-wrapper .rune {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-color: rgba(255,107,0,.25);
+  border-style: solid;
+  border-width: 0;
+  z-index: 0;
+}
+.landing-wrapper .rune-tl { top: 20px; left: 20px; border-top-width: 2px; border-left-width: 2px; }
+.landing-wrapper .rune-tr { top: 20px; right: 20px; border-top-width: 2px; border-right-width: 2px; }
+.landing-wrapper .rune-bl { bottom: 20px; left: 20px; border-bottom-width: 2px; border-left-width: 2px; }
+.landing-wrapper .rune-br { bottom: 20px; right: 20px; border-bottom-width: 2px; border-right-width: 2px; }
+.landing-wrapper .rune::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--orange);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--orange);
+}
+.landing-wrapper .rune-tl::after { top: -3px; left: -3px; }
+.landing-wrapper .rune-tr::after { top: -3px; right: -3px; }
+.landing-wrapper .rune-bl::after { bottom: -3px; left: -3px; }
+.landing-wrapper .rune-br::after { bottom: -3px; right: -3px; }
+
+/* Cosmic dust */
+.landing-wrapper .dust {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.landing-wrapper .dust-c { background: var(--cyan); }
+.landing-wrapper .dust-o { background: var(--orange); }
+.landing-wrapper .dust-w { background: #88ddff; }
+
+@keyframes dust-drift-1 {
+  0%   { opacity: 0; transform: translate(0, 0); }
+  15%  { opacity: .6; }
+  85%  { opacity: .3; }
+  100% { opacity: 0; transform: translate(30px, -60px); }
+}
+@keyframes dust-drift-2 {
+  0%   { opacity: 0; transform: translate(0, 0); }
+  20%  { opacity: .5; }
+  80%  { opacity: .2; }
+  100% { opacity: 0; transform: translate(-40px, -30px); }
+}
+@keyframes dust-drift-3 {
+  0%   { opacity: 0; transform: translate(0, 0); }
+  10%  { opacity: .7; }
+  90%  { opacity: .25; }
+  100% { opacity: 0; transform: translate(20px, 50px); }
+}
+@keyframes dust-drift-4 {
+  0%   { opacity: 0; transform: translate(0, 0); }
+  25%  { opacity: .4; }
+  75%  { opacity: .15; }
+  100% { opacity: 0; transform: translate(-25px, -45px); }
+}
+
+.landing-wrapper .d1  { left:5%;  top:20%; animation: dust-drift-1 8s ease-in-out infinite; }
+.landing-wrapper .d2  { left:8%;  top:60%; animation: dust-drift-2 11s ease-in-out 1s infinite; width:2px; height:2px; }
+.landing-wrapper .d3  { left:12%; top:35%; animation: dust-drift-3 9s ease-in-out 3s infinite; }
+.landing-wrapper .d5  { right:6%; top:25%; animation: dust-drift-2 10s ease-in-out .5s infinite; }
+.landing-wrapper .d7  { right:10%;top:75%; animation: dust-drift-3 8s ease-in-out 1.5s infinite; }
+.landing-wrapper .d9  { left:20%; top:10%; animation: dust-drift-1 13s ease-in-out 2.5s infinite; width:2px; height:2px; }
+.landing-wrapper .d11 { right:18%;top:90%; animation: dust-drift-4 11s ease-in-out 1s infinite; }
+.landing-wrapper .d14 { right:22%;top:65%; animation: dust-drift-2 8s ease-in-out 2s infinite; }
+
+/* Ship nav */
+.landing-wrapper .ship-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: 48px;
+  background:
+    linear-gradient(180deg, rgba(10,14,26,.95) 0%, rgba(10,14,26,.6) 70%, transparent 100%);
+  border-bottom: 1px solid rgba(0,229,255,.12);
+}
+.landing-wrapper .ship-nav::before,
+.landing-wrapper .ship-nav::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  height: 2px;
+  width: 120px;
+}
+.landing-wrapper .ship-nav::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+  box-shadow: 0 0 8px var(--cyan);
+}
+.landing-wrapper .ship-nav::after {
+  right: 0;
+  background: linear-gradient(-90deg, var(--orange), transparent);
+  box-shadow: 0 0 8px var(--orange);
+}
+
+.landing-wrapper .nav-brand {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: .75rem;
+  color: var(--cyan);
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.landing-wrapper .nav-brand .dot {
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--cyan);
+}
+
+.md-typeset .landing-wrapper .nav-links,
+.landing-wrapper ul.nav-links {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: .25rem !important;
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.md-typeset .landing-wrapper .nav-links li,
+.landing-wrapper .nav-links li {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  margin-left: 0 !important;
+}
+.landing-wrapper .nav-links a {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .65rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  padding: .4rem .8rem;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition: color .2s, border-color .2s, background .2s;
+  position: relative;
+}
+.landing-wrapper .nav-links a:hover {
+  color: var(--cyan);
+  border-color: rgba(0,229,255,.25);
+  background: rgba(0,229,255,.05);
+}
+.landing-wrapper .nav-links a::before {
+  content: '//';
+  color: rgba(0,229,255,.3);
+  margin-right: .3rem;
+}
+
+.landing-wrapper .nav-status {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .6rem;
+  color: var(--text-dim);
+  letter-spacing: .1em;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.landing-wrapper .nav-status .indicator {
+  width: 5px;
+  height: 5px;
+  background: #0f0;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #0f0;
+}
+
+/* Terminal */
+.landing-wrapper .terminal {
+  position: relative;
+  z-index: 2;
+  width: min(520px, 90vw);
+  background: rgba(5,8,18,.85);
+  border: 1px solid rgba(0,229,255,.2);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 25px rgba(0,229,255,.08), inset 0 0 30px rgba(0,0,0,.5);
+}
+.landing-wrapper .terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .8rem;
+  background: rgba(0,229,255,.06);
+  border-bottom: 1px solid rgba(0,229,255,.12);
+}
+.landing-wrapper .terminal-bar .dot-r { width: 8px; height: 8px; border-radius: 50%; background: #ff3b3b; box-shadow: 0 0 6px #ff3b3b; }
+.landing-wrapper .terminal-bar .dot-y { width: 8px; height: 8px; border-radius: 50%; background: #ffb800; box-shadow: 0 0 6px #ffb800; }
+.landing-wrapper .terminal-bar .dot-g { width: 8px; height: 8px; border-radius: 50%; background: #00e676; box-shadow: 0 0 6px #00e676; }
+.landing-wrapper .terminal-bar span:last-child {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .55rem;
+  color: var(--text-dim);
+  letter-spacing: .1em;
+  margin-left: auto;
+}
+.landing-wrapper .terminal-body {
+  padding: .8rem 1rem;
+  height: 155px;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+  font-size: .8rem;
+  line-height: 1.6;
+  color: var(--cyan);
+}
+.landing-wrapper .terminal-body .prompt { color: var(--orange); }
+.landing-wrapper .terminal-body .cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--cyan);
+  vertical-align: text-bottom;
+  animation: blink-cursor .6s step-end infinite;
+}
+@keyframes blink-cursor { 50% { opacity: 0; } }
+.landing-wrapper .terminal-body .line {
+  display: block;
+  min-height: 1.3em;
+}
+.landing-wrapper .terminal-body .done { color: #6be675; }
+.landing-wrapper .terminal-body .info { color: var(--text-dim); }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if page.is_homepage %}
+<div class="landing-wrapper">
+
+<!-- Side blending panels -->
+<div class="side-panel side-panel-left"></div>
+<div class="side-panel side-panel-right"></div>
+
+<!-- Starship hull lines -->
+<svg class="hull-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+  <line class="beam-glow" x1="0" y1="0" x2="320" y2="540"/>
+  <line class="beam-cyan dashed" x1="0" y1="0" x2="320" y2="540"/>
+  <line class="beam-cyan-thin dashed2" x1="0" y1="80" x2="280" y2="480"/>
+  <line class="beam-cyan-thin dashed3" x1="60" y1="0" x2="350" y2="620"/>
+  <line class="beam-glow" x1="0" y1="1080" x2="260" y2="580"/>
+  <line class="beam-cyan dashed2" x1="0" y1="1080" x2="260" y2="580"/>
+  <line class="beam-cyan-thin dashed" x1="0" y1="960" x2="220" y2="550"/>
+  <line class="beam-glow-o" x1="1920" y1="0" x2="1580" y2="500"/>
+  <line class="beam-orange dashed" x1="1920" y1="0" x2="1580" y2="500"/>
+  <line class="beam-orange-thin dashed3" x1="1920" y1="100" x2="1620" y2="460"/>
+  <line class="beam-orange-thin dashed2" x1="1850" y1="0" x2="1540" y2="560"/>
+  <line class="beam-glow-o" x1="1920" y1="1080" x2="1640" y2="560"/>
+  <line class="beam-orange dashed2" x1="1920" y1="1080" x2="1640" y2="560"/>
+  <line class="beam-orange-thin dashed" x1="1920" y1="980" x2="1680" y2="600"/>
+  <line class="beam-cyan-thin dashed3" x1="0" y1="180" x2="400" y2="200"/>
+  <line class="beam-orange-thin dashed3" x1="1920" y1="200" x2="1520" y2="180"/>
+  <line class="beam-cyan-thin dashed2" x1="0" y1="880" x2="350" y2="860"/>
+  <line class="beam-orange-thin dashed2" x1="1920" y1="900" x2="1560" y2="870"/>
+</svg>
+
+<!-- Junction nodes -->
+<div class="hull-node node-cyan" style="left:16.5%;top:49%"></div>
+<div class="hull-node node-cyan node-pulse" style="left:13.5%;top:53%"></div>
+<div class="hull-node node-orange" style="right:17.5%;top:46%"></div>
+<div class="hull-node node-orange node-pulse" style="right:14.5%;top:51%"></div>
+<div class="hull-node node-cyan" style="left:0%;top:0%"></div>
+<div class="hull-node node-orange" style="right:0%;top:0%"></div>
+<div class="hull-node node-cyan" style="left:0%;bottom:0%"></div>
+<div class="hull-node node-orange" style="right:0%;bottom:0%"></div>
+
+<!-- Corner runes -->
+<div class="rune rune-tl"></div>
+<div class="rune rune-tr"></div>
+<div class="rune rune-bl"></div>
+<div class="rune rune-br"></div>
+
+<!-- Cosmic dust -->
+<div class="dust dust-c d1"></div><div class="dust dust-o d2"></div>
+<div class="dust dust-w d3"></div><div class="dust dust-c d5"></div>
+<div class="dust dust-o d7"></div><div class="dust dust-c d9"></div>
+<div class="dust dust-o d11"></div><div class="dust dust-w d14"></div>
+
+<!-- Ship navigation -->
+<nav class="ship-nav">
+  <div class="nav-brand"><span class="dot"></span> RayforceUI</div>
+  <ul class="nav-links">
+    <li><a href="#">Docs</a></li>
+    <li><a href="#">Changelog</a></li>
+    <li><a href="#">Contact</a></li>
+  </ul>
+  <div class="nav-status"><span class="indicator"></span> SYS ONLINE</div>
+</nav>
+
+<div class="logo">Rayforce<span style="color:var(--orange)">UI</span></div>
+
+<!-- Cosmic terminal -->
+<div class="terminal">
+  <div class="terminal-bar">
+    <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
+    <span>RAYFORCE:// SYSTEMS</span>
+  </div>
+  <div class="terminal-body" id="terminal-output">
+    <span class="line"><span class="prompt">&gt; </span><span id="term-line"></span><span class="cursor"></span></span>
+  </div>
+</div>
+
+<div class="downloads">
+  <a href="https://github.com/nicholasgasior/rayforce-ui/releases" class="btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139z"/></svg><span>Linux</span></a>
+  <a href="https://github.com/nicholasgasior/rayforce-ui/releases" class="btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11"/></svg><span>macOS</span></a>
+  <a href="https://github.com/nicholasgasior/rayforce-ui/releases" class="btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg><span>Windows</span></a>
+</div>
+
+<div class="socials">
+  <a href="#" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+  <a href="#" aria-label="Mail"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M1.5 4.5h21c.827 0 1.5.673 1.5 1.5v12c0 .827-.673 1.5-1.5 1.5h-21C.673 19.5 0 18.827 0 18V6c0-.827.673-1.5 1.5-1.5zm10.5 8.25L2.4 6H21.6l-9.6 6.75zM1.5 7.2V18h21V7.2l-10.5 7.35L1.5 7.2z"/></svg></a>
+  <a href="#" aria-label="Reddit"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12c0 6.627 5.373 12 12 12s12-5.373 12-12c0-6.627-5.373-12-12-12zm6.066 13.29c.015.177.015.354 0 .53-.33 2.08-2.815 3.76-5.944 3.76-3.129 0-5.614-1.68-5.944-3.76a3.553 3.553 0 010-.53c-.49-.257-.82-.753-.82-1.33 0-.828.672-1.5 1.5-1.5.324 0 .625.103.87.278 1.105-.714 2.58-1.148 4.218-1.218l.845-3.97a.375.375 0 01.449-.29l2.791.61c.172-.44.606-.755 1.113-.755.662 0 1.2.537 1.2 1.2s-.538 1.2-1.2 1.2c-.634 0-1.151-.493-1.196-1.117l-2.464-.54-.727 3.416c1.598.088 3.033.52 4.11 1.215.245-.175.546-.278.87-.278.828 0 1.5.672 1.5 1.5 0 .577-.33 1.073-.82 1.33zM9.078 13.04c0 .661.537 1.198 1.198 1.198s1.198-.537 1.198-1.198-.537-1.198-1.198-1.198-1.198.537-1.198 1.198zm5.846 2.732c-.584.584-1.603.768-2.912.768h-.024c-1.31 0-2.328-.184-2.912-.768a.337.337 0 010-.476.337.337 0 01.476 0c.422.422 1.282.574 2.436.574h.024c1.154 0 2.014-.152 2.436-.574a.337.337 0 01.476 0 .337.337 0 010 .476zm-.24-1.534c.661 0 1.198-.537 1.198-1.198s-.537-1.198-1.198-1.198-1.198.537-1.198 1.198.537 1.198 1.198 1.198z"/></svg></a>
+  <a href="https://x.com/RayforceDB" aria-label="X"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+  <a href="#" aria-label="Zulip"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22.767 3.589c0 1.209-.543 2.283-1.37 2.934l-8.034 7.174c-.149.128-.343-.078-.235-.25l2.946-5.9c.083-.165-.024-.368-.194-.368H4.452c-1.77 0-3.219-1.615-3.219-3.59C1.233 1.616 2.682 0 4.452 0h15.096c1.77-.001 3.219 1.614 3.219 3.589zM4.452 24h15.096c1.77 0 3.219-1.616 3.219-3.59 0-1.974-1.449-3.59-3.219-3.59H8.12c-.17 0-.277-.202-.194-.367l2.946-5.9c.108-.172-.086-.378-.235-.25l-8.033 7.173c-.828.65-1.37 1.725-1.37 2.934 0 1.974 1.448 3.59 3.218 3.59z"/></svg></a>
+  <a href="https://github.com/nicholasgasior/rayforce-ui" aria-label="GitHub"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+</div>
+
+</div>
+
+<script>
+// Terminal typewriter
+const features = [
+  { cmd: 'rayforce --features', lines: [
+    { text: '[OK] Real-time streaming quotes — sub-ms latency', cls: 'done' },
+    { text: '[OK] One-click trade execution with smart routing', cls: 'done' },
+    { text: '[OK] 50+ technical indicators & multi-timeframe charts', cls: 'done' },
+    { text: '[OK] Custom layouts with drag & drop panels', cls: 'done' },
+    { text: '     Built on C/C++ over wgpu', cls: 'info' },
+  ]},
+  { cmd: 'rayforce --status', lines: [
+    { text: '[OK] Engine: Rayfall v4.2 — active', cls: 'done' },
+    { text: '[OK] Data feed: NYSE, NASDAQ, CME connected', cls: 'done' },
+    { text: '[OK] Latency: 0.3ms avg roundtrip', cls: 'done' },
+    { text: '[OK] GPU rendering: enabled (wgpu)', cls: 'done' },
+    { text: '     All systems operational', cls: 'info' },
+  ]},
+  { cmd: 'rayforce --version', lines: [
+    { text: '[OK] RayforceUI v2.1.0 (2026-01-30)', cls: 'done' },
+    { text: '[OK] Platform: cross-platform desktop', cls: 'done' },
+    { text: '[OK] Support: enabled', cls: 'done' },
+    { text: '     Download at rayforcedb.com', cls: 'info' },
+  ]},
+];
+
+const termOut = document.getElementById('terminal-output');
+const termLine = document.getElementById('term-line');
+let featureIdx = 0;
+
+async function typeText(el, text, speed) {
+  speed = speed || 35;
+  for (let i = 0; i < text.length; i++) {
+    el.textContent += text[i];
+    await new Promise(function(r) { setTimeout(r, speed + Math.random() * 20); });
+  }
+}
+
+async function runTerminal() {
+  while (true) {
+    const feat = features[featureIdx % features.length];
+    featureIdx++;
+    termOut.innerHTML = '<span class="line"><span class="prompt">&gt; </span><span id="term-line"></span><span class="cursor"></span></span>';
+    const tl = document.getElementById('term-line');
+    await typeText(tl, feat.cmd, 40);
+    await new Promise(function(r) { setTimeout(r, 400); });
+    for (let j = 0; j < feat.lines.length; j++) {
+      const line = feat.lines[j];
+      const span = document.createElement('span');
+      span.className = 'line ' + line.cls;
+      span.textContent = line.text;
+      span.style.opacity = '0';
+      termOut.appendChild(span);
+      await new Promise(function(r) { setTimeout(r, 80); });
+      span.style.opacity = '1';
+      span.style.transition = 'opacity .3s';
+    }
+    await new Promise(function(r) { setTimeout(r, 4000); });
+  }
+}
+
+runTerminal();
+</script>
+
+{% else %}
+  {{ super() }}
+{% endif %}
+{% endblock %}
