@@ -46,7 +46,7 @@ The script connects to the feed server and creates five widgets:
 | Quotes Count | Text | Total quote count |
 | Price Chart | Chart | OHLC candlestick bars from last 500 trades |
 
-All widgets update every second as the server pushes new data.
+All widgets update immediately as the server pushes new data.
 
 ## How It Works
 
