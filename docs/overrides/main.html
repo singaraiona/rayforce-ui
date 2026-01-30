@@ -5,7 +5,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+{% if page.is_homepage %}
+<link rel="preload" href="images/cover.jpeg" as="image">
+<script>
+(function(){
+  var ready=function(){document.documentElement.classList.add('fonts-ready')};
+  var img=new Image();img.src='images/cover.jpeg';
+  Promise.all([document.fonts.ready,new Promise(function(r){img.complete?r():img.onload=img.onerror=r})]).then(ready);
+  setTimeout(ready,3000);
+})();
+</script>
+{% else %}
 <script>document.fonts.ready.then(function(){document.documentElement.classList.add('fonts-ready')});setTimeout(function(){document.documentElement.classList.add('fonts-ready')},2000);</script>
+{% endif %}
 {% if page.is_homepage %}
 <style>
 /* Reset root font-size to match standalone page */
