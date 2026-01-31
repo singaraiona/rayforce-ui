@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p dist/rayforce-ui
           cp rayforce-ui CHANGELOG.md dist/rayforce-ui/
-          cp -r examples assets dist/rayforce-ui/
+          cp -r examples dist/rayforce-ui/
           cd dist && tar czf rayforce-ui-linux-x64.tar.gz rayforce-ui
 
       - name: Upload artifact
@@ -54,6 +54,7 @@ jobs:
             make
             git
             zip
+            vim
 
       - uses: actions/checkout@v4
 
@@ -67,7 +68,7 @@ jobs:
         run: |
           mkdir -p dist/rayforce-ui
           cp rayforce-ui.exe CHANGELOG.md dist/rayforce-ui/
-          cp -r examples assets dist/rayforce-ui/
+          cp -r examples dist/rayforce-ui/
           cd dist && zip -r rayforce-ui-windows-x64.zip rayforce-ui
 
       - name: Upload artifact
@@ -91,7 +92,7 @@ jobs:
         run: |
           mkdir -p dist/rayforce-ui
           cp rayforce-ui CHANGELOG.md dist/rayforce-ui/
-          cp -r examples assets dist/rayforce-ui/
+          cp -r examples dist/rayforce-ui/
           cd dist && tar czf rayforce-ui-macos-arm64.tar.gz rayforce-ui
 
       - name: Upload artifact
