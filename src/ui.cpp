@@ -152,10 +152,19 @@ i32_t rfui_ui_init(nil_t) {
     glfwSwapInterval(1); // Enable vsync
 
     // Get HiDPI scale factor
+    // On macOS Retina, content scale is 2.0 but GLFW already maps coordinates
+    // to screen points — only fonts need the scale for sharp rendering.
+    // On Windows/Linux, content scale reflects actual UI scaling (1.25, 1.5, etc.)
+    // and both fonts and style need scaling.
     float xscale, yscale;
     glfwGetWindowContentScale(g_window, &xscale, &yscale);
     float dpi_scale = (xscale > yscale) ? xscale : yscale;
     if (dpi_scale < 1.0f) dpi_scale = 1.0f;
+#ifdef __APPLE__
+    float style_scale = 1.0f;  // macOS handles point-to-pixel transparently
+#else
+    float style_scale = dpi_scale;
+#endif
 
     // Setup Dear ImGui and ImPlot contexts
     IMGUI_CHECKVERSION();
@@ -198,7 +207,7 @@ i32_t rfui_ui_init(nil_t) {
     io.Fonts->AddFontFromMemoryTTF((void*)embed_JetBrainsMono_Regular_ttf, embed_JetBrainsMono_Regular_ttf_len, large_font_size, &large_cfg);
 
     // Scale style for HiDPI (but not fonts - they're already sized correctly)
-    ImGui::GetStyle().ScaleAllSizes(dpi_scale);
+    ImGui::GetStyle().ScaleAllSizes(style_scale);
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(g_window, true);
