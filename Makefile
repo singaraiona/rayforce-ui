@@ -122,7 +122,8 @@ GLFW_DEFINES = -D_GLFW_WIN32
 GLFW_LIBS =
 
 CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -Wall -Wextra -std=$(STD) -g -O0 -D_CRT_SECURE_NO_WARNINGS -DDEBUG
-LIBS = -fuse-ld=lld -static -Wl,/subsystem:windows -Wl,/entry:mainCRTStartup -lws2_32 -lmswsock -lkernel32 -lopengl32 -lgdi32 -luser32 -lshell32 -ldbghelp
+LIBS = -fuse-ld=lld -static -Wl,/subsystem:windows -Wl,/entry:mainCRTStartup -lws2_32 -lmswsock -lkernel32 -lopengl32 -lgdi32 -luser32 -lshell32
+LIBS_DEBUG = -ldbghelp
 TARGET = rayforce-ui.exe
 endif
 
@@ -179,6 +180,7 @@ ifneq (,$(IS_WINDOWS))
 release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -Wall -Wextra -std=$(STD) -O3 -DNDEBUG -D_CRT_SECURE_NO_WARNINGS
 release: CXXFLAGS = -std=c++17 -D_CRT_SECURE_NO_WARNINGS $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -Wall -Wextra -O3 -DNDEBUG
 release: GLFW_CFLAGS = -Wall -std=c99 -O3 $(GLFW_DEFINES) -I$(GLFW_DIR)/include -I$(GLFW_DIR)/src
+release: LIBS_DEBUG =
 else
 release: CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -fPIC -Wall -Wextra -std=$(STD) -O3 -DNDEBUG -march=native -fsigned-char -m64
 release: CXXFLAGS = -std=c++11 $(GCC_CXX_INCLUDES) $(IMGUI_INCLUDES) $(GLFW_INCLUDES) -fPIC -Wall -Wextra -O3 -DNDEBUG
@@ -197,7 +199,7 @@ $(RAYFORCE_LIB):
 # Use C++ linker since we have C++ objects
 ifneq (,$(IS_WINDOWS))
 $(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(FILEDIALOG_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
-	$(CXX) -Wl,/map:$@.map -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
+	$(CXX) -Wl,/map:$@.map -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS) $(LIBS_DEBUG)
 else
 $(TARGET): $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(FILEDIALOG_OBJ) $(GLFW_OBJ) $(RAYFORCE_LIB)
 	$(CXX) -nostdlib++ -o $@ $(filter-out $(RAYFORCE_LIB),$^) $(RAYFORCE_LIB) $(LIBS)
