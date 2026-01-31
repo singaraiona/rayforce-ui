@@ -122,7 +122,7 @@ GLFW_DEFINES = -D_GLFW_WIN32
 GLFW_LIBS =
 
 CFLAGS = -include $(RAYFORCE_DIR)/core/def.h -Wall -Wextra -std=$(STD) -g -O0 -D_CRT_SECURE_NO_WARNINGS -DDEBUG
-LIBS = -fuse-ld=lld -lws2_32 -lmswsock -lkernel32 -lopengl32 -lgdi32 -luser32 -lshell32 -ldbghelp
+LIBS = -fuse-ld=lld -static -lws2_32 -lmswsock -lkernel32 -lopengl32 -lgdi32 -luser32 -lshell32 -ldbghelp
 TARGET = rayforce-ui.exe
 endif
 
