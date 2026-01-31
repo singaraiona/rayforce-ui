@@ -166,6 +166,13 @@ ifeq (,$(IS_WINDOWS))
 TARGET = rayforce-ui
 endif
 
+EMBED_ASSETS = assets/fonts/JetBrainsMono-Regular.ttf assets/fonts/fa-solid-900.otf assets/images/logo.svg assets/images/icon.svg
+
+src/embed_assets.h: $(EMBED_ASSETS) scripts/embed.sh
+	sh scripts/embed.sh $(EMBED_ASSETS) > $@
+
+$(OBJ_CXX): src/embed_assets.h
+
 default: $(TARGET)
 
 ifneq (,$(IS_WINDOWS))
@@ -233,6 +240,7 @@ deps:
 	fi
 
 clean:
+	rm -f src/embed_assets.h
 	rm -f $(OBJ_C) $(OBJ_CXX) $(IMGUI_OBJ) $(IMPLOT_OBJ) $(FILEDIALOG_OBJ) $(GLFW_OBJ) $(TARGET)
 	$(MAKE) -C $(RAYFORCE_DIR) clean
 

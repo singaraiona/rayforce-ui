@@ -8,11 +8,11 @@
 extern "C" {
 #endif
 
-// Load logo SVG and create OpenGL texture. Returns 0 on success.
-int rfui_logo_init(const char* svg_path);
+// Load logo from embedded SVG data and create OpenGL texture. Returns 0 on success.
+int rfui_logo_init(void);
 
-// Load icon SVG and set as GLFW window icon. Returns 0 on success.
-int rfui_icon_init(const char* svg_path, void* glfw_window);
+// Load icon from embedded SVG data and set as GLFW window icon. Returns 0 on success.
+int rfui_icon_init(void* glfw_window);
 
 // Render logo as centered background watermark (call before dockspace).
 void rfui_logo_render(void);

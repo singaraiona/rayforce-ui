@@ -24,6 +24,7 @@
 #include "../include/rfui/logo.h"
 #include "../include/rfui/icons.h"
 #include "../include/rfui/version.h"
+#include "embed_assets.h"
 
 #define GL_SILENCE_DEPRECATION
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -175,9 +176,11 @@ i32_t rfui_ui_init(nil_t) {
     // Apply dashboard theme (replaces StyleColorsDark)
     rfui_theme_apply();
 
-    // Load Iosevka Bold as primary font
+    // Load primary font (from embedded data)
     float font_size = 20.0f * dpi_scale;
-    io.Fonts->AddFontFromFileTTF("assets/fonts/Iosevka-Bold.ttf", font_size);
+    ImFontConfig font_cfg;
+    font_cfg.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF((void*)embed_JetBrainsMono_Regular_ttf, embed_JetBrainsMono_Regular_ttf_len, font_size, &font_cfg);
 
     // Merge FontAwesome icons into the primary font
     static const ImWchar icon_ranges[] = { 0xf000, 0xf8ff, 0 };
@@ -185,11 +188,14 @@ i32_t rfui_ui_init(nil_t) {
     icon_cfg.MergeMode = true;
     icon_cfg.PixelSnapH = true;
     icon_cfg.GlyphMinAdvanceX = font_size;
-    io.Fonts->AddFontFromFileTTF("assets/fonts/fa-solid-900.otf", font_size, &icon_cfg, icon_ranges);
+    icon_cfg.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF((void*)embed_fa_solid_900_otf, embed_fa_solid_900_otf_len, font_size, &icon_cfg, icon_ranges);
 
     // Large font for text/label widgets (index 1)
     float large_font_size = 48.0f * dpi_scale;
-    io.Fonts->AddFontFromFileTTF("assets/fonts/Iosevka-Bold.ttf", large_font_size);
+    ImFontConfig large_cfg;
+    large_cfg.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF((void*)embed_JetBrainsMono_Regular_ttf, embed_JetBrainsMono_Regular_ttf_len, large_font_size, &large_cfg);
 
     // Scale style for HiDPI (but not fonts - they're already sized correctly)
     ImGui::GetStyle().ScaleAllSizes(dpi_scale);
@@ -198,9 +204,9 @@ i32_t rfui_ui_init(nil_t) {
     ImGui_ImplGlfw_InitForOpenGL(g_window, true);
     ImGui_ImplOpenGL3_Init(g_glsl_version);
 
-    // Load background logo and window icon (non-fatal if missing)
-    rfui_logo_init("assets/images/logo.svg");
-    rfui_icon_init("assets/images/icon.svg", g_window);
+    // Load background logo and window icon from embedded data
+    rfui_logo_init();
+    rfui_icon_init(g_window);
 
     // Initialize widget registry
     rfui_registry_init();

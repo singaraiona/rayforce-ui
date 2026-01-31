@@ -14,5 +14,8 @@
 .vscode/
 .idea/
 
+# Generated
+src/embed_assets.h
+
 # macOS
 .DS_Store

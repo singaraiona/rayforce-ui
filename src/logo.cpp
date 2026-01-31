@@ -29,6 +29,8 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include "../deps/nanosvg/src/nanosvgrast.h"
 
+#include "embed_assets.h"
+
 extern "C" {
 #include "../include/rfui/logo.h"
 }
@@ -39,10 +41,13 @@ static int g_logo_h = 0;
 
 extern "C" {
 
-int rfui_logo_init(const char* svg_path) {
-    NSVGimage* image = nsvgParseFromFile(svg_path, "px", 96.0f);
+int rfui_logo_init(void) {
+    char* svg_copy = strdup((const char*)embed_logo_svg);
+    if (!svg_copy) return -1;
+    NSVGimage* image = nsvgParse(svg_copy, "px", 96.0f);
+    free(svg_copy);
     if (!image) {
-        fprintf(stderr, "logo: failed to parse %s\n", svg_path);
+        fprintf(stderr, "logo: failed to parse embedded logo SVG\n");
         return -1;
     }
 
@@ -120,10 +125,13 @@ void rfui_logo_size(int* w, int* h) {
     if (h) *h = g_logo_h;
 }
 
-int rfui_icon_init(const char* svg_path, void* glfw_window) {
-    NSVGimage* image = nsvgParseFromFile(svg_path, "px", 96.0f);
+int rfui_icon_init(void* glfw_window) {
+    char* svg_copy = strdup((const char*)embed_icon_svg);
+    if (!svg_copy) return -1;
+    NSVGimage* image = nsvgParse(svg_copy, "px", 96.0f);
+    free(svg_copy);
     if (!image) {
-        fprintf(stderr, "icon: failed to parse %s\n", svg_path);
+        fprintf(stderr, "icon: failed to parse embedded icon SVG\n");
         return -1;
     }
 
